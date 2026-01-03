@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Parking - Scan Plate</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        video {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+        }
+        #status {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+        #scanBtn {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            background-color: #00AAFF;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="canvas" style="display:none;"></canvas>
+
+<div id="status">Đang khởi động camera...</div>
+<button id="scanBtn">📷 Quét</button>
+
+<script>
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const statusText = document.getElementById("status");
+const scanBtn = document.getElementById("scanBtn");
+
+// 🔧 ĐỊA CHỈ BACKEND (sửa IP cho đúng)
+const BACKEND_URL = "https://192.168.43.82:8000/upload";
+
+// 1️⃣ Bật camera sau
+navigator.mediaDevices.getUserMedia({
+    video: {
+        facingMode: { ideal: "environment" }
+    }
+})
+.then(stream => {
+    video.srcObject = stream;
+    statusText.innerText = "Camera đã bật – bấm 'Quét' để gửi ảnh...";
+})
+.catch(err => {
+    statusText.innerText = "Không bật được camera!";
+    console.error(err);
+});
+
+// 2️⃣ Khi bấm nút "Quét"
+scanBtn.addEventListener("click", () => {
+    if (!video.videoWidth) {
+        statusText.innerText = "Camera chưa sẵn sàng!";
+        return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append("image", blob, "plate.jpg");
+
+        statusText.innerText = "Đang gửi ảnh...";
+
+        fetch(BACKEND_URL, {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                statusText.innerText = "📸 Ảnh đã gửi thành công!";
+            } else {
+                statusText.innerText = "⚠️ Gửi ảnh thất bại";
+            }
+        })
+        .catch(err => {
+            statusText.innerText = "❌ Không kết nối được BE";
+            console.error(err);
+        });
+
+    }, "image/jpeg", 0.8);
+});
+</script>
+
+</body>
+</html>
