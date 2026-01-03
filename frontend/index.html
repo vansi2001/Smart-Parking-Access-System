@@ -27,18 +27,18 @@
             padding: 10px 20px;
             border-radius: 10px;
         }
-        #scanBtn {
+        .actionBtn {
             position: fixed;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
-            font-size: 18px;
+            padding: 12px 22px;
+            font-size: 16px;
             border: none;
             border-radius: 10px;
             background-color: #00AAFF;
             color: white;
         }
+        #checkinBtn { left: 30%; transform: translateX(-50%); }
+        #checkoutBtn { left: 70%; transform: translateX(-50%); }
     </style>
 </head>
 
@@ -48,15 +48,18 @@
 <canvas id="canvas" style="display:none;"></canvas>
 
 <div id="status">Đang khởi động camera...</div>
-<button id="scanBtn">📷 Quét</button>
+<button id="checkinBtn" class="actionBtn">Check-in</button>
+<button id="checkoutBtn" class="actionBtn">Check-out</button>
 
 <script>
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const statusText = document.getElementById("status");
-const scanBtn = document.getElementById("scanBtn");
+const checkinBtn = document.getElementById("checkinBtn");
+const checkoutBtn = document.getElementById("checkoutBtn");
 
 // 🔧 ĐỊA CHỈ BACKEND (sửa IP cho đúng)
+// Lưu ý: Phải dùng https:// và đúng IP của máy tính chạy backend
 const BACKEND_URL = "https://192.168.43.82:8000/upload";
 
 // 1️⃣ Bật camera sau
@@ -74,8 +77,8 @@ navigator.mediaDevices.getUserMedia({
     console.error(err);
 });
 
-// 2️⃣ Khi bấm nút "Quét"
-scanBtn.addEventListener("click", () => {
+// 2️⃣ Khi bấm nút Check-in / Check-out — gửi kèm trường `status` (1 = checkin, 0 = checkout)
+async function sendCapture(status) {
     if (!video.videoWidth) {
         statusText.innerText = "Camera chưa sẵn sàng!";
         return;
@@ -90,6 +93,7 @@ scanBtn.addEventListener("click", () => {
     canvas.toBlob(blob => {
         const formData = new FormData();
         formData.append("image", blob, "plate.jpg");
+        formData.append("status", String(status));
 
         statusText.innerText = "Đang gửi ảnh...";
 
@@ -100,9 +104,21 @@ scanBtn.addEventListener("click", () => {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                statusText.innerText = "📸 Ảnh đã gửi thành công!";
+                if (status === 1) {
+                    statusText.innerText = `✅ Check-in: ${data.plate_number || 'Không rõ biển'}`;
+                } else {
+                    // Nếu phí = 0 khi checkout, tức là có vấn đề (không tìm thấy xe)
+                    if (data.fee === 0) {
+                        statusText.innerText = `${data.message}\nBiển số đọc được: ${data.plate_number || 'Không rõ'}`;
+                        statusText.style.backgroundColor = "rgba(255, 0, 0, 0.8)"; // Đổi màu nền sang đỏ báo động
+                    } else {
+                        const feeStr = data.fee.toLocaleString('vi-VN');
+                        statusText.innerText = `✅ Check-out: ${data.plate_number || 'Xe'}\n💰 Phí: ${feeStr} VNĐ`;
+                        statusText.style.backgroundColor = "rgba(0, 0, 0, 0.7)"; // Màu đen bình thường
+                    }
+                }
             } else {
-                statusText.innerText = "⚠️ Gửi ảnh thất bại";
+                statusText.innerText = "⚠️ BE trả về lỗi";
             }
         })
         .catch(err => {
@@ -111,7 +127,10 @@ scanBtn.addEventListener("click", () => {
         });
 
     }, "image/jpeg", 0.8);
-});
+}
+
+checkinBtn.addEventListener('click', () => sendCapture(1));
+checkoutBtn.addEventListener('click', () => sendCapture(0));
 </script>
 
 </body>
