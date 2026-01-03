@@ -1,5 +1,6 @@
 import os
 import time
+import re
 from fastapi import FastAPI, File, UploadFile, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -49,31 +50,62 @@ async def upload_image(image: UploadFile = File(...), status: int = Form(...), d
     size = len(content)
     
     # Tiến hành cắt ảnh xe (nếu có)
-    cropped_path = yolo_utils.detect_and_crop_vehicle(dest_path, CROP_DIR)
+    # Truyền trực tiếp content (bytes) và tên file để xử lý
+    cropped_path, cropped_img = yolo_utils.detect_and_crop_vehicle(content, safe_name, CROP_DIR)
     crop_msg = "Không tìm thấy xe"
     plate_text = None
     
     if cropped_path:
         crop_msg = f"Đã cắt ảnh xe: {os.path.basename(cropped_path)}"
-        # Tiến hành OCR để đọc biển số
-        plate_text = yolo_utils.read_plate_text(cropped_path)
+        # Tiến hành OCR với ảnh đã cắt sẵn trong RAM (cropped_img)
+        plate_text = yolo_utils.read_plate_text(cropped_img)
+
+    # --- VALIDATION: Kiểm tra định dạng biển số ---
+    # 1. Nếu không đọc được biển số
+    if not plate_text:
+        return {
+            "success": False,
+            "id": None,
+            "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
+            "plate_number": None,
+            "fee": 0,
+            "message": "⚠️ Không đọc được biển số! Vui lòng chụp lại."
+        }
+
+    # 2. Kiểm tra regex định dạng 5 số: 2 số + 1 chữ + '-' + 3 số + '.' + 2 số
+    # Ví dụ hợp lệ: 30A-123.45. Ví dụ không hợp lệ: 30A-1234 (4 số), 06A-4253 (4 số)
+    if not re.match(r'^\d{2}[A-Z]-\d{3}\.\d{2}$', plate_text):
+        return {
+            "success": False,
+            "id": None,
+            "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
+            "plate_number": plate_text,
+            "fee": 0,
+            "message": f"⚠️ Biển số sai định dạng: {plate_text}. Yêu cầu biển 5 số (VD: 30A-123.45)"
+        }
 
     # SAU KHI xử lý ảnh xong, mới tiến hành lưu vào DB
     # Kết hợp status, tên file ảnh và biển số vừa đọc được
-    rec = crud.create_session_entry(db, safe_name, int(status), plate_text)
+    rec, msg = crud.create_session_entry(db, safe_name, int(status), plate_text)
 
-    # Logic tạo thông báo phản hồi
-    message = "Thành công"
-    # Nếu là Check-out (0) mà phí = 0 -> Có nghĩa là không tìm thấy xe vào
-    if int(status) == 0 and (rec.fee is None or rec.fee == 0):
-        message = "⚠️ CẢNH BÁO: Không tìm thấy thông tin xe vào! Vui lòng kiểm tra thủ công."
+    # Nếu bị từ chối (rec is None) do trùng lặp hoặc không tìm thấy xe
+    if not rec:
+        print(f"⚠️ TỪ CHỐI: {msg}")
+        return {
+            "success": False,
+            "id": None,
+            "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
+            "plate_number": plate_text,
+            "fee": 0,
+            "message": f"⚠️ {msg}"
+        }
 
-    print(f"Đã nhận ảnh: {size} bytes, status={status}. {crop_msg}. Biển số: {plate_text}")
+    print(f"Đã nhận ảnh: {size} bytes, status={status}. {crop_msg}. Biển số: {plate_text}. Msg: {msg}")
     return {
         "success": True, 
         "id": rec.id, 
         "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
         "plate_number": plate_text,
         "fee": rec.fee if rec.fee else 0,
-        "message": message
+        "message": msg
     }

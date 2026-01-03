@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+parking.db
+
+# Uploads and generated media
+backend/uploads/
+uploads/
+
+# Logs
+*.log
+nohup.out
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-* 
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+
+# Python bytecode
+*.pyc

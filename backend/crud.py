@@ -15,6 +15,15 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
     """Tạo bản ghi vào bảng chính ParkingSession"""
     # status: 1 = Check-in, 0 = Check-out
     if status == 1:
+        # Xe vào: Kiểm tra xem xe đã có trong bãi chưa (tránh Check-in 2 lần)
+        if plate_number:
+            existing = db.query(database.ParkingSession).filter(
+                database.ParkingSession.plate_number == plate_number,
+                database.ParkingSession.status == "PARKING"
+            ).first()
+            if existing:
+                return None, f"Xe {plate_number} đang trong bãi! Không thể Check-in lại."
+
         # Xe vào: Tạo session mới
         session = database.ParkingSession(
             plate_number=plate_number,
@@ -23,6 +32,9 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
             status="PARKING"
         )
         db.add(session)
+        db.commit()
+        db.refresh(session)
+        return session, "Check-in thành công"
     else:
         # Xe ra: Tìm session đang mở (PARKING) có cùng biển số
         session = None
@@ -48,16 +60,11 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
                 session.fee = 30000.0
             else:               # 1 ngày đêm
                 session.fee = 50000.0
+            
+            db.commit()
+            db.refresh(session)
+            return session, "Check-out thành công"
         else:
-            # Không tìm thấy (hoặc không đọc được biển) -> Tạo record rời rạc
-            session = database.ParkingSession(
-                plate_number=plate_number,
-                checkout_img=filename,
-                checkout_time=datetime.now(),
-                status="CHECKOUT"
-            )
-            db.add(session)
-    
-    db.commit()
-    db.refresh(session)
-    return session
+            # Không tìm thấy xe trong bãi -> Từ chối Check-out để tránh lỗi
+            msg = f"Xe {plate_number} chưa Check-in hoặc đã ra rồi!" if plate_number else "Không đọc được biển số để Check-out!"
+            return None, msg

@@ -104,21 +104,16 @@ async function sendCapture(status) {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
+                statusText.style.backgroundColor = "rgba(0, 0, 0, 0.7)"; // Màu đen (bình thường)
                 if (status === 1) {
-                    statusText.innerText = `✅ Check-in: ${data.plate_number || 'Không rõ biển'}`;
+                    statusText.innerText = `✅ ${data.message}\n🚗 Biển số: ${data.plate_number || 'Không rõ'}`;
                 } else {
-                    // Nếu phí = 0 khi checkout, tức là có vấn đề (không tìm thấy xe)
-                    if (data.fee === 0) {
-                        statusText.innerText = `${data.message}\nBiển số đọc được: ${data.plate_number || 'Không rõ'}`;
-                        statusText.style.backgroundColor = "rgba(255, 0, 0, 0.8)"; // Đổi màu nền sang đỏ báo động
-                    } else {
-                        const feeStr = data.fee.toLocaleString('vi-VN');
-                        statusText.innerText = `✅ Check-out: ${data.plate_number || 'Xe'}\n💰 Phí: ${feeStr} VNĐ`;
-                        statusText.style.backgroundColor = "rgba(0, 0, 0, 0.7)"; // Màu đen bình thường
-                    }
+                    const feeStr = data.fee ? data.fee.toLocaleString('vi-VN') : "0";
+                    statusText.innerText = `✅ ${data.message}\n🚗 Biển số: ${data.plate_number || 'Không rõ'}\n💰 Phí: ${feeStr} VNĐ`;
                 }
             } else {
-                statusText.innerText = "⚠️ BE trả về lỗi";
+                statusText.style.backgroundColor = "rgba(255, 0, 0, 0.8)"; // Màu đỏ (lỗi/cảnh báo)
+                statusText.innerText = data.message || "⚠️ Lỗi từ Server";
             }
         })
         .catch(err => {

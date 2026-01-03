@@ -16,15 +16,23 @@ reader = easyocr.Reader(['en'], gpu=False) # gpu=True nếu máy có NVIDIA GPU
 # 2: car, 3: motorcycle, 5: bus, 7: truck
 VEHICLE_CLASSES = [2, 3, 5, 7]
 
-def detect_and_crop_vehicle(image_path: str, output_dir: str) -> str:
+def detect_and_crop_vehicle(image_data, filename: str, output_dir: str):
     """
-    Nhận diện xe trong ảnh và cắt ảnh xe đó ra.
-    Trả về đường dẫn file ảnh đã cắt (hoặc None nếu không tìm thấy xe).
+    Nhận diện xe từ dữ liệu ảnh (bytes) và cắt ảnh xe.
+    Trả về (đường dẫn file cắt, ảnh cắt dạng numpy array).
     """
-    # Đọc ảnh
-    img = cv2.imread(image_path)
+    # Đọc ảnh trực tiếp từ bộ nhớ (Memory) thay vì đọc lại từ đĩa
+    nparr = np.frombuffer(image_data, np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
     if img is None:
-        return None
+        return None, None
+
+    # --- TỐI ƯU HÓA 1: Resize ảnh lớn xuống kích thước vừa phải để YOLO chạy nhanh hơn ---
+    height, width = img.shape[:2]
+    if width > 1280:
+        scale = 1280 / width
+        img = cv2.resize(img, None, fx=scale, fy=scale)
 
     # Chạy dự đoán
     results = model(img, verbose=False)
@@ -51,35 +59,41 @@ def detect_and_crop_vehicle(image_path: str, output_dir: str) -> str:
         crop_img = img[y1:y2, x1:x2]
         
         # Tạo tên file output
-        base_name = os.path.basename(image_path)
-        crop_name = f"crop_{base_name}"
+        crop_name = f"crop_{filename}"
         crop_path = os.path.join(output_dir, crop_name)
         
         # Lưu ảnh cắt
         cv2.imwrite(crop_path, crop_img)
-        return crop_path
+        return crop_path, crop_img
     
-    return None
+    return None, None
 
-def read_plate_text(image_path: str) -> str:
+def read_plate_text(image_source) -> str:
     """
-    Đọc văn bản từ file ảnh sử dụng EasyOCR.
-    Sử dụng OpenCV để xử lý ảnh trước khi đưa vào OCR.
+    Đọc văn bản từ ảnh (có thể là đường dẫn file hoặc numpy array).
     """
-    if not image_path or not os.path.exists(image_path):
-        return None
-        
-    # Đọc ảnh và chuyển sang Grayscale để OCR tốt hơn
-    img = cv2.imread(image_path)
+    img = None
+    if isinstance(image_source, str):
+        # Nếu là đường dẫn file
+        if os.path.exists(image_source):
+            img = cv2.imread(image_source)
+    else:
+        # Nếu là ảnh numpy array (đã load sẵn)
+        img = image_source
+
     if img is None:
         return None
 
-    # 1. Xử lý ảnh (Preprocessing)
-    # Phóng to ảnh lên 2 lần để OCR dễ đọc các chi tiết nhỏ
-    img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    # 1. Xử lý ảnh (Preprocessing) - TỐI ƯU HÓA TỐC ĐỘ
+    # Chỉ phóng to nếu ảnh quá nhỏ (chiều ngang < 300px)
+    # Ảnh từ điện thoại cắt ra thường đã đủ lớn, phóng to thêm sẽ làm chậm OCR rất nhiều
+    h, w = img.shape[:2]
+    if w < 300:
+        img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+        
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Khử nhiễu nhẹ
-    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+    # Bỏ bilateralFilter vì rất chậm, thay bằng GaussianBlur nhẹ hơn nếu cần, hoặc bỏ qua
+    # gray = cv2.GaussianBlur(gray, (3, 3), 0) 
     
     # 2. Đọc text (detail=0 chỉ lấy nội dung text)
     # allowlist: Giới hạn chỉ đọc chữ và số để giảm nhiễu
@@ -115,13 +129,36 @@ def fix_vietnamese_plate_format(text: str) -> str:
     Chuẩn hóa biển số xe Việt Nam (Dân sự: 2 Số - 1 Chữ - 4/5 Số)
     Ví dụ input: "3OA12345" -> output: "30A12345"
     """
-    # Biển số thường có từ 7 đến 9 ký tự (bao gồm cả mã tỉnh, series và số)
-    if len(text) < 7 or len(text) > 9:
+    # Nếu chuỗi quá dài (>8), ta cần chọn ra 8 ký tự "giống biển số nhất"
+    # Thay vì chỉ lấy text[:8] (dễ bị dính ký tự rác ở đầu làm mất số cuối),
+    # ta dùng Sliding Window để tìm đoạn khớp mẫu: DD C DDDDD
+    if len(text) > 8:
+        best_text = text[:8]
+        best_score = -1
+        
+        for i in range(len(text) - 8 + 1):
+            sub = text[i:i+8]
+            score = 0
+            # Cộng điểm nếu ký tự đúng loại (Số ở vị trí số, Chữ ở vị trí chữ)
+            if sub[0].isdigit(): score += 1
+            if sub[1].isdigit(): score += 1
+            if sub[2].isalpha(): score += 1
+            for j in range(3, 8):
+                if sub[j].isdigit(): score += 1
+            
+            if score > best_score:
+                best_score = score
+                best_text = sub
+        
+        text = best_text
+
+    # Biển số thường có từ 7 đến 8 ký tự (bao gồm cả mã tỉnh, series và số)
+    if len(text) < 7:
         return text # Trả về nguyên gốc nếu độ dài không hợp lý
 
     # Bảng map sửa lỗi các ký tự dễ nhầm
     # Nhầm Chữ -> Số (Dùng cho 2 ký tự đầu và dãy số cuối)
-    dict_char_to_int = {'O': '0', 'D': '0', 'I': '1', 'L': '1', 'Z': '2', 'B': '8', 'S': '5', 'G': '6'}
+    dict_char_to_int = {'O': '0', 'D': '0', 'Q': '0', 'I': '1', 'L': '1', 'Z': '2', 'B': '3', 'S': '5', 'G': '6'}
     # Nhầm Số -> Chữ (Dùng cho ký tự thứ 3 - Series)
     dict_int_to_char = {'0': 'O', '1': 'I', '2': 'Z', '3': 'B', '4': 'A', '5': 'S', '6': 'G', '7': 'T', '8': 'B', '9': 'G'}
 
