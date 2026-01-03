@@ -26,6 +26,8 @@ parking.db
 # Uploads and generated media
 backend/uploads/
 uploads/
+/upload/
+/**/upload/
 
 # Logs
 *.log
@@ -45,3 +47,6 @@ Thumbs.db
 
 # Python bytecode
 *.pyc
+
+# Files bắt đầu bằng crop_
+crop_*

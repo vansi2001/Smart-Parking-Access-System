@@ -4,34 +4,38 @@ from ultralytics import YOLO
 import easyocr
 import numpy as np
 import re
+import torch
 
 # Load model YOLOv8 nano (sẽ tự động tải file yolov8n.pt về thư mục hiện tại nếu chưa có)
 # Model này nhận diện được 80 loại đối tượng trong bộ dữ liệu COCO
 model = YOLO("yolov8n.pt")
 
 # Khởi tạo EasyOCR (chỉ tải model lần đầu chạy)
-reader = easyocr.Reader(['en'], gpu=False) # gpu=True nếu máy có NVIDIA GPU
+# TỰ ĐỘNG KIỂM TRA GPU: Nếu có CUDA thì dùng GPU, ngược lại dùng CPU
+use_gpu = torch.cuda.is_available()
+reader = easyocr.Reader(['en'], gpu=use_gpu)
 
 # Danh sách class ID của các loại xe trong COCO dataset
 # 2: car, 3: motorcycle, 5: bus, 7: truck
 VEHICLE_CLASSES = [2, 3, 5, 7]
 
-def detect_and_crop_vehicle(image_data, filename: str, output_dir: str):
+def detect_and_crop_vehicle(image_data):
     """
     Nhận diện xe từ dữ liệu ảnh (bytes) và cắt ảnh xe.
-    Trả về (đường dẫn file cắt, ảnh cắt dạng numpy array).
+    Trả về ảnh cắt dạng numpy array (hoặc None).
     """
     # Đọc ảnh trực tiếp từ bộ nhớ (Memory) thay vì đọc lại từ đĩa
     nparr = np.frombuffer(image_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
     
     if img is None:
-        return None, None
+        return None
 
     # --- TỐI ƯU HÓA 1: Resize ảnh lớn xuống kích thước vừa phải để YOLO chạy nhanh hơn ---
+    # YOLOv8n được train ở 640x640. Resize về 640 giúp tăng tốc độ gấp 2-4 lần so với 1280
     height, width = img.shape[:2]
-    if width > 1280:
-        scale = 1280 / width
+    if width > 640:
+        scale = 640 / width
         img = cv2.resize(img, None, fx=scale, fy=scale)
 
     # Chạy dự đoán
@@ -58,15 +62,9 @@ def detect_and_crop_vehicle(image_data, filename: str, output_dir: str):
         # Cắt ảnh (Crop)
         crop_img = img[y1:y2, x1:x2]
         
-        # Tạo tên file output
-        crop_name = f"crop_{filename}"
-        crop_path = os.path.join(output_dir, crop_name)
-        
-        # Lưu ảnh cắt
-        cv2.imwrite(crop_path, crop_img)
-        return crop_path, crop_img
+        return crop_img
     
-    return None, None
+    return None
 
 def read_plate_text(image_source) -> str:
     """
@@ -96,8 +94,9 @@ def read_plate_text(image_source) -> str:
     # gray = cv2.GaussianBlur(gray, (3, 3), 0) 
     
     # 2. Đọc text (detail=0 chỉ lấy nội dung text)
-    # allowlist: Giới hạn chỉ đọc chữ và số để giảm nhiễu
-    results = reader.readtext(gray, detail=0, allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.')
+    # TỐI ƯU HÓA 2: Thêm tham số decoder='greedy' (nhanh hơn beamsearch)
+    # batch_size=1: Giảm độ trễ cho 1 ảnh đơn lẻ
+    results = reader.readtext(gray, detail=0, allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.', decoder='greedy', batch_size=1)
     
     # 3. Hậu xử lý (Post-processing) theo định dạng biển số VN
     if results:

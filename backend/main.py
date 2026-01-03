@@ -1,6 +1,7 @@
 import os
 import time
 import re
+import cv2
 from datetime import datetime
 from io import BytesIO
 from fastapi import FastAPI, File, UploadFile, Form, Depends
@@ -52,14 +53,12 @@ async def upload_image(
     safe_name = f"{ts}_{os.path.basename(image.filename)}"
     dest_path = os.path.join(UPLOAD_DIR, safe_name)
 
-    with open(dest_path, 'wb') as f:
-        f.write(content)
-
     size = len(content)
     
     # Xử lý biển số: Ưu tiên nhập tay, nếu không có mới chạy AI
     plate_text = None
     cropped_path = None
+    cropped_img = None
     crop_msg = ""
     
     if plate_number:
@@ -67,10 +66,10 @@ async def upload_image(
         crop_msg = "Biển số nhập tay từ Frontend"
     else:
         # Tiến hành cắt ảnh xe (nếu có)
-        cropped_path, cropped_img = yolo_utils.detect_and_crop_vehicle(content, safe_name, CROP_DIR)
+        cropped_img = yolo_utils.detect_and_crop_vehicle(content)
         crop_msg = "Không tìm thấy xe"
-        if cropped_path:
-            crop_msg = f"Đã cắt ảnh xe: {os.path.basename(cropped_path)}"
+        if cropped_img is not None:
+            crop_msg = "Đã cắt ảnh xe"
             # Tiến hành OCR với ảnh đã cắt sẵn trong RAM (cropped_img)
             plate_text = yolo_utils.read_plate_text(cropped_img)
 
@@ -80,7 +79,7 @@ async def upload_image(
         return {
             "success": False,
             "id": None,
-            "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
+            "cropped_image": None,
             "plate_number": None,
             "fee": 0,
             "message": "⚠️ Không đọc được biển số! Vui lòng chụp lại."
@@ -92,7 +91,7 @@ async def upload_image(
         return {
             "success": False,
             "id": None,
-            "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
+            "cropped_image": None,
             "plate_number": plate_text,
             "fee": 0,
             "message": f"⚠️ Biển số sai định dạng: {plate_text}. Yêu cầu biển 5 số (VD: 30A-123.45)"
@@ -108,11 +107,22 @@ async def upload_image(
         return {
             "success": False,
             "id": None,
-            "cropped_image": os.path.basename(cropped_path) if cropped_path else None,
+            "cropped_image": None,
             "plate_number": plate_text,
             "fee": 0,
             "message": f"⚠️ {msg}"
         }
+
+    # --- THÀNH CÔNG: BÂY GIỜ MỚI LƯU FILE ---
+    # 1. Lưu ảnh gốc
+    with open(dest_path, 'wb') as f:
+        f.write(content)
+
+    # 2. Lưu ảnh crop (nếu có)
+    if cropped_img is not None:
+        crop_name = f"crop_{safe_name}"
+        cropped_path = os.path.join(CROP_DIR, crop_name)
+        cv2.imwrite(cropped_path, cropped_img)
 
     print(f"Đã nhận ảnh: {size} bytes, status={status}. {crop_msg}. Biển số: {plate_text}. Msg: {msg}")
     return {
