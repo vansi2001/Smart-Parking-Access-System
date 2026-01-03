@@ -1,8 +1,11 @@
 import os
 import time
 import re
+from datetime import datetime
+from io import BytesIO
 from fastapi import FastAPI, File, UploadFile, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 import crud, models, yolo_utils
@@ -120,3 +123,75 @@ async def upload_image(
         "fee": rec.fee if rec.fee else 0,
         "message": msg
     }
+
+@app.post('/report')
+async def export_report(
+    start_time: str = Form(...),
+    end_time: str = Form(...),
+    secret_code: str = Form(...),
+    delete_data: bool = Form(False),
+    db: Session = Depends(get_db)
+):
+    """Xuất báo cáo Excel và tùy chọn xóa dữ liệu"""
+    # 1. Kiểm tra mã bảo mật
+    if secret_code != "123":
+        return {"success": False, "message": "Mã xác nhận không đúng!"}
+
+    try:
+        # Convert string ISO format từ frontend thành datetime
+        dt_start = datetime.fromisoformat(start_time)
+        dt_end = datetime.fromisoformat(end_time)
+    except ValueError:
+        return {"success": False, "message": "Định dạng thời gian không hợp lệ"}
+
+    # 2. Lấy dữ liệu
+    sessions = crud.get_sessions_in_range(db, dt_start, dt_end)
+    
+    if not sessions:
+        return {"success": False, "message": "Không có dữ liệu trong khoảng thời gian này"}
+
+    # 3. Tạo file Excel bằng openpyxl
+    try:
+        import openpyxl
+    except ImportError:
+        return {"success": False, "message": "Lỗi Server: Chưa cài thư viện 'openpyxl'. Vui lòng chạy: pip install openpyxl"}
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Báo cáo gửi xe"
+    
+    # Header
+    headers = ["ID", "Biển số", "Giờ vào", "Giờ ra", "Trạng thái", "Phí (VNĐ)", "Ảnh vào", "Ảnh ra"]
+    ws.append(headers)
+    
+    for s in sessions:
+        ws.append([
+            s.id,
+            s.plate_number,
+            s.checkin_time.strftime("%Y-%m-%d %H:%M:%S") if s.checkin_time else "",
+            s.checkout_time.strftime("%Y-%m-%d %H:%M:%S") if s.checkout_time else "",
+            s.status,
+            s.fee,
+            s.checkin_img,
+            s.checkout_img
+        ])
+
+    # 4. Xóa dữ liệu nếu được yêu cầu (Sau khi đã đưa vào excel)
+    deleted_count = 0
+    if delete_data:
+        deleted_count = crud.delete_sessions_in_range(db, dt_start, dt_end, UPLOAD_DIR, CROP_DIR)
+        print(f"Đã xóa {deleted_count} bản ghi và giải phóng dung lượng.")
+
+    # 5. Trả về file Excel
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"BaoCao_{dt_start.strftime('%Y%m%d')}_{dt_end.strftime('%Y%m%d')}.xlsx"
+    
+    # Trả về file stream
+    return StreamingResponse(
+        buffer, 
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

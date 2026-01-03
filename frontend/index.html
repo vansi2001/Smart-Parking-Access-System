@@ -40,21 +40,30 @@
         #checkinBtn { left: 30%; transform: translateX(-50%); }
         #checkoutBtn { left: 70%; transform: translateX(-50%); }
 
-        /* Nút nhập tay ở góc trên phải */
-        #toggleManualBtn {
+        /* Nút công cụ ở góc trên phải */
+        .top-bar {
             position: fixed;
-            top: 20px; right: 20px;
+            top: 20px;
+            right: 20px;
             z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+        .top-btn {
             background: #FF9800;
             color: white;
             border: none;
-            padding: 10px 15px;
+            padding: 10px 0;
+            width: 120px;
             border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
         }
-        /* Form nhập tay (Overlay) */
-        #manualOverlay {
+        #toggleManualBtn { background: #FF9800; }
+        #toggleReportBtn { background: #4CAF50; } /* Nút báo cáo màu xanh */
+
+        /* Form Overlay chung */
+        .overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85);
@@ -64,12 +73,20 @@
             align-items: center;
             z-index: 1000;
         }
+        .form-box {
+            background: #222; padding: 25px; border-radius: 15px; width: 80%; max-width: 350px; 
+            text-align: center; border: 1px solid #444;
+        }
+        .input-field { width: 90%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: none; }
     </style>
 </head>
 
 <body>
 
-<button id="toggleManualBtn" onclick="toggleManual()">✎ Nhập tay</button>
+<div class="top-bar">
+    <button id="toggleReportBtn" class="top-btn" onclick="toggleReport()">📊 Báo cáo</button>
+    <button id="toggleManualBtn" class="top-btn" onclick="toggleManual()">✎ Nhập tay</button>
+</div>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas" style="display:none;"></canvas>
@@ -79,15 +96,34 @@
 <button id="checkoutBtn" class="actionBtn">Check-out</button>
 
 <!-- Form nhập tay -->
-<div id="manualOverlay">
-    <div style="background: #222; padding: 25px; border-radius: 15px; width: 80%; max-width: 350px; text-align: center; border: 1px solid #444;">
+<div id="manualOverlay" class="overlay">
+    <div class="form-box">
         <h3 style="margin-top: 0; color: #FF9800;">Nhập biển số</h3>
-        <input type="text" id="manualInput" placeholder="VD: 30A-123.45" style="width: 90%; padding: 12px; margin-bottom: 20px; font-size: 18px; border-radius: 5px; border: none; text-align: center; text-transform: uppercase;">
+        <input type="text" id="manualInput" class="input-field" placeholder="VD: 30A-123.45" style="font-size: 18px; text-align: center; text-transform: uppercase;">
         <div style="display: flex; justify-content: space-around; gap: 10px;">
             <button onclick="sendManual(1)" style="flex: 1; background: #00AAFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Vào</button>
             <button onclick="sendManual(0)" style="flex: 1; background: #FF9800; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Ra</button>
         </div>
         <button onclick="toggleManual()" style="margin-top: 20px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
+    </div>
+</div>
+
+<!-- Form Báo cáo -->
+<div id="reportOverlay" class="overlay">
+    <div class="form-box">
+        <h3 style="margin-top: 0; color: #4CAF50;">Xuất Báo Cáo</h3>
+        <label style="display:block; text-align:left; margin-bottom:5px; color:#ccc">Từ ngày:</label>
+        <input type="datetime-local" id="startDate" class="input-field">
+        
+        <label style="display:block; text-align:left; margin-bottom:5px; color:#ccc">Đến ngày:</label>
+        <input type="datetime-local" id="endDate" class="input-field">
+        
+        <input type="password" id="secretCode" class="input-field" placeholder="Mã xác nhận (123)" style="text-align:center">
+        
+        <button onclick="downloadReport(false)" style="width:100%; background: #2196F3; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-bottom: 10px;">📥 Tải Báo Cáo</button>
+        <button onclick="downloadReport(true)" style="width:100%; background: #F44336; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">🗑️ Tải & Xóa Dữ Liệu</button>
+        
+        <button onclick="toggleReport()" style="margin-top: 20px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
     </div>
 </div>
 
@@ -188,6 +224,73 @@ function sendManual(status) {
     }
     toggleManual(); // Đóng form
     sendCapture(status, plate); // Gửi kèm biển số nhập tay
+}
+
+// --- Logic cho Báo cáo ---
+function toggleReport() {
+    const overlay = document.getElementById("reportOverlay");
+    overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
+    
+    // Set default time (Hôm nay)
+    if (overlay.style.display === "flex") {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById("endDate").value = now.toISOString().slice(0,16);
+        
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        document.getElementById("startDate").value = yesterday.toISOString().slice(0,16);
+    }
+}
+
+function downloadReport(deleteData) {
+    const start = document.getElementById("startDate").value;
+    const end = document.getElementById("endDate").value;
+    const code = document.getElementById("secretCode").value;
+
+    if (!start || !end || !code) {
+        alert("Vui lòng nhập đầy đủ thông tin!");
+        return;
+    }
+    
+    if (deleteData && !confirm("CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu và ảnh trong khoảng thời gian này sau khi tải báo cáo không?")) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("start_time", start);
+    formData.append("end_time", end);
+    formData.append("secret_code", code);
+    formData.append("delete_data", deleteData);
+
+    const reportUrl = BACKEND_URL.replace("/upload", "/report");
+    console.log("Đang tải báo cáo từ:", reportUrl); // Kiểm tra URL trong Console
+
+    fetch(reportUrl, { method: "POST", body: formData })
+    .then(res => {
+        // Nếu server trả về lỗi (VD: chưa cài openpyxl), nó sẽ là JSON
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+            return res.json().then(data => {
+                if (!data.success) throw new Error(data.message);
+                return data; // Trường hợp lạ
+            });
+        }
+        if (res.ok) return res.blob();
+        throw new Error("Lỗi kết nối: " + res.statusText);
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `BaoCao_${Date.now()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        if (deleteData) alert("Đã tải báo cáo và xóa dữ liệu thành công!");
+        toggleReport();
+    })
+    .catch(err => alert("Lỗi: " + err.message));
 }
 </script>
 

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 import models, database
 from datetime import datetime
+import os
 
 
 def create_record(db: Session, filename: str, status: int, size: int = None):
@@ -68,3 +69,36 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
             # Không tìm thấy xe trong bãi -> Từ chối Check-out để tránh lỗi
             msg = f"Xe {plate_number} chưa Check-in hoặc đã ra rồi!" if plate_number else "Không đọc được biển số để Check-out!"
             return None, msg
+
+def get_sessions_in_range(db: Session, start_date: datetime, end_date: datetime):
+    """Lấy danh sách session trong khoảng thời gian (dựa theo checkin_time)"""
+    return db.query(database.ParkingSession).filter(
+        database.ParkingSession.checkin_time >= start_date,
+        database.ParkingSession.checkin_time <= end_date
+    ).all()
+
+def delete_sessions_in_range(db: Session, start_date: datetime, end_date: datetime, upload_dir: str, crop_dir: str):
+    """Xóa session và file ảnh liên quan trong khoảng thời gian"""
+    sessions = get_sessions_in_range(db, start_date, end_date)
+    count = 0
+    
+    for ses in sessions:
+        # Xóa file ảnh checkin
+        if ses.checkin_img:
+            try: os.remove(os.path.join(upload_dir, ses.checkin_img))
+            except OSError: pass
+            try: os.remove(os.path.join(crop_dir, f"crop_{ses.checkin_img}"))
+            except OSError: pass
+            
+        # Xóa file ảnh checkout
+        if ses.checkout_img:
+            try: os.remove(os.path.join(upload_dir, ses.checkout_img))
+            except OSError: pass
+            try: os.remove(os.path.join(crop_dir, f"crop_{ses.checkout_img}"))
+            except OSError: pass
+
+        db.delete(ses)
+        count += 1
+    
+    db.commit()
+    return count
