@@ -90,13 +90,27 @@ def read_plate_text(image_source) -> str:
         img = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
         
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # Bỏ bilateralFilter vì rất chậm, thay bằng GaussianBlur nhẹ hơn nếu cần, hoặc bỏ qua
-    # gray = cv2.GaussianBlur(gray, (3, 3), 0) 
+
+    # --- CHIẾN THUẬT XỬ LÝ ẢNH NÂNG CAO (Đặc trị xe màu trắng/biển lóa) ---
     
-    # 2. Đọc text (detail=0 chỉ lấy nội dung text)
-    # TỐI ƯU HÓA 2: Thêm tham số decoder='greedy' (nhanh hơn beamsearch)
-    # batch_size=1: Giảm độ trễ cho 1 ảnh đơn lẻ
-    results = reader.readtext(gray, detail=0, allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.', decoder='greedy', batch_size=1)
+    # 1. Áp dụng CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    # Giúp cân bằng độ sáng, làm nổi bật chữ đen trên nền trắng bị lóa
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    enhanced_img = clahe.apply(gray)
+    
+    # Thử lần 1: Với ảnh đã cân bằng sáng (CLAHE)
+    results = reader.readtext(enhanced_img, detail=0, allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.', decoder='greedy', batch_size=1)
+    
+    # Thử lần 2: Nếu không đọc được, thử ĐẢO NGƯỢC MÀU (Invert)
+    # (Biến chữ đen/nền trắng -> chữ trắng/nền đen - EasyOCR đôi khi thích kiểu này hơn)
+    if not results:
+        inverted_img = cv2.bitwise_not(enhanced_img)
+        results = reader.readtext(inverted_img, detail=0, allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.', decoder='greedy', batch_size=1)
+
+    # Thử lần 3: Nếu vẫn không được, dùng Threshold (Nhị phân hóa mạnh - Chỉ còn đen và trắng)
+    if not results:
+        _, binary_img = cv2.threshold(enhanced_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        results = reader.readtext(binary_img, detail=0, allowlist='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-.', decoder='greedy', batch_size=1)
     
     # 3. Hậu xử lý (Post-processing) theo định dạng biển số VN
     if results:
