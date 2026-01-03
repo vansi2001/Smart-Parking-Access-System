@@ -32,7 +32,12 @@ models.Base.metadata.create_all(bind=engine)
 
 
 @app.post('/upload')
-async def upload_image(image: UploadFile = File(...), status: int = Form(...), db: Session = Depends(get_db)):
+async def upload_image(
+    image: UploadFile = File(...), 
+    status: int = Form(...), 
+    plate_number: str = Form(None), # Nhận thêm biển số nhập tay (Optional)
+    db: Session = Depends(get_db)
+):
     """Receive uploaded image and a status field (1=checkin,0=checkout).
     Saves file to `uploads/` and inserts a record into SQLite DB.
     """
@@ -49,16 +54,22 @@ async def upload_image(image: UploadFile = File(...), status: int = Form(...), d
 
     size = len(content)
     
-    # Tiến hành cắt ảnh xe (nếu có)
-    # Truyền trực tiếp content (bytes) và tên file để xử lý
-    cropped_path, cropped_img = yolo_utils.detect_and_crop_vehicle(content, safe_name, CROP_DIR)
-    crop_msg = "Không tìm thấy xe"
+    # Xử lý biển số: Ưu tiên nhập tay, nếu không có mới chạy AI
     plate_text = None
+    cropped_path = None
+    crop_msg = ""
     
-    if cropped_path:
-        crop_msg = f"Đã cắt ảnh xe: {os.path.basename(cropped_path)}"
-        # Tiến hành OCR với ảnh đã cắt sẵn trong RAM (cropped_img)
-        plate_text = yolo_utils.read_plate_text(cropped_img)
+    if plate_number:
+        plate_text = plate_number.strip().upper()
+        crop_msg = "Biển số nhập tay từ Frontend"
+    else:
+        # Tiến hành cắt ảnh xe (nếu có)
+        cropped_path, cropped_img = yolo_utils.detect_and_crop_vehicle(content, safe_name, CROP_DIR)
+        crop_msg = "Không tìm thấy xe"
+        if cropped_path:
+            crop_msg = f"Đã cắt ảnh xe: {os.path.basename(cropped_path)}"
+            # Tiến hành OCR với ảnh đã cắt sẵn trong RAM (cropped_img)
+            plate_text = yolo_utils.read_plate_text(cropped_img)
 
     # --- VALIDATION: Kiểm tra định dạng biển số ---
     # 1. Nếu không đọc được biển số

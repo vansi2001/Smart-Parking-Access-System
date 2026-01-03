@@ -39,10 +39,37 @@
         }
         #checkinBtn { left: 30%; transform: translateX(-50%); }
         #checkoutBtn { left: 70%; transform: translateX(-50%); }
+
+        /* Nút nhập tay ở góc trên phải */
+        #toggleManualBtn {
+            position: fixed;
+            top: 20px; right: 20px;
+            z-index: 100;
+            background: #FF9800;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        /* Form nhập tay (Overlay) */
+        #manualOverlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none; /* Ẩn mặc định */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
     </style>
 </head>
 
 <body>
+
+<button id="toggleManualBtn" onclick="toggleManual()">✎ Nhập tay</button>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas" style="display:none;"></canvas>
@@ -50,6 +77,19 @@
 <div id="status">Đang khởi động camera...</div>
 <button id="checkinBtn" class="actionBtn">Check-in</button>
 <button id="checkoutBtn" class="actionBtn">Check-out</button>
+
+<!-- Form nhập tay -->
+<div id="manualOverlay">
+    <div style="background: #222; padding: 25px; border-radius: 15px; width: 80%; max-width: 350px; text-align: center; border: 1px solid #444;">
+        <h3 style="margin-top: 0; color: #FF9800;">Nhập biển số</h3>
+        <input type="text" id="manualInput" placeholder="VD: 30A-123.45" style="width: 90%; padding: 12px; margin-bottom: 20px; font-size: 18px; border-radius: 5px; border: none; text-align: center; text-transform: uppercase;">
+        <div style="display: flex; justify-content: space-around; gap: 10px;">
+            <button onclick="sendManual(1)" style="flex: 1; background: #00AAFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Vào</button>
+            <button onclick="sendManual(0)" style="flex: 1; background: #FF9800; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Ra</button>
+        </div>
+        <button onclick="toggleManual()" style="margin-top: 20px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
+    </div>
+</div>
 
 <script>
 const video = document.getElementById("video");
@@ -78,7 +118,7 @@ navigator.mediaDevices.getUserMedia({
 });
 
 // 2️⃣ Khi bấm nút Check-in / Check-out — gửi kèm trường `status` (1 = checkin, 0 = checkout)
-async function sendCapture(status) {
+async function sendCapture(status, manualPlate = null) {
     if (!video.videoWidth) {
         statusText.innerText = "Camera chưa sẵn sàng!";
         return;
@@ -94,6 +134,10 @@ async function sendCapture(status) {
         const formData = new FormData();
         formData.append("image", blob, "plate.jpg");
         formData.append("status", String(status));
+        
+        if (manualPlate) {
+            formData.append("plate_number", manualPlate);
+        }
 
         statusText.innerText = "Đang gửi ảnh...";
 
@@ -126,6 +170,25 @@ async function sendCapture(status) {
 
 checkinBtn.addEventListener('click', () => sendCapture(1));
 checkoutBtn.addEventListener('click', () => sendCapture(0));
+
+// --- Logic cho Form nhập tay ---
+function toggleManual() {
+    const overlay = document.getElementById("manualOverlay");
+    overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
+    if (overlay.style.display === "flex") {
+        document.getElementById("manualInput").focus();
+    }
+}
+
+function sendManual(status) {
+    const plate = document.getElementById("manualInput").value.trim();
+    if (!plate) {
+        alert("Vui lòng nhập biển số!");
+        return;
+    }
+    toggleManual(); // Đóng form
+    sendCapture(status, plate); // Gửi kèm biển số nhập tay
+}
 </script>
 
 </body>
