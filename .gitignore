@@ -18,10 +18,14 @@ env/
 ENV/
 
 # SQLite database files
-# *.db
+*.db
 *.sqlite
 *.sqlite3
-# parking.db
+parking.db
+
+# *.db
+*.jpg
+
 
 # Uploads and generated media
 backend/uploads/
