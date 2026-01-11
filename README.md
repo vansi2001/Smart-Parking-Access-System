@@ -23,7 +23,21 @@ Hệ thống quản lý bãi đỗ xe thông minh sử dụng công nghệ AI (C
 
 ---
 
-## 🛠️ Công nghệ sử dụng
+## 💻 Yêu cầu hệ thống (System Requirements)
+
+Để hệ thống hoạt động ổn định với các model AI, máy tính cần đáp ứng cấu hình tối thiểu sau:
+
+*   **Hệ điều hành:** Windows 10/11, macOS hoặc Linux.
+*   **Python:** Phiên bản **3.9** đến **3.11** (Khuyên dùng 3.10).
+*   **RAM:** Tối thiểu **4GB** (Khuyên dùng 8GB trở lên để load model YOLO và EasyOCR mượt mà).
+*   **CPU:** Core i5 thế hệ 4 trở lên hoặc tương đương.
+*   **GPU (Tùy chọn):** NVIDIA GTX/RTX với CUDA để tăng tốc độ nhận diện (nếu không có sẽ chạy bằng CPU chậm hơn chút).
+*   **Dung lượng ổ cứng:** Trống ít nhất 2GB (để lưu thư viện và ảnh chụp xe).
+*   **Camera:** Webcam USB hoặc Camera laptop (để test tính năng quét).
+
+---
+
+## ️ Công nghệ sử dụng
 
 *   **Backend:** Python, FastAPI, Uvicorn, SQLAlchemy.
 *   **AI/CV:** Ultralytics YOLOv8, EasyOCR, OpenCV, PyTorch.
@@ -32,14 +46,28 @@ Hệ thống quản lý bãi đỗ xe thông minh sử dụng công nghệ AI (C
 
 ---
 
-## ⚙️ Hướng dẫn Cài đặt & Chạy (HTTPS)
+## ⚙️ Hướng dẫn Cài đặt & Chạy (Từng bước)
 
-Để sử dụng Camera trên điện thoại, bắt buộc hệ thống phải chạy trên giao thức **HTTPS**.
+Làm theo các bước sau để thiết lập hệ thống từ đầu:
 
-### Bước 1: Chuẩn bị môi trường
-Cài đặt các thư viện Python cần thiết:
+### Bước 1: Tạo môi trường ảo (Virtual Environment)
+Mở Terminal (CMD/PowerShell) tại thư mục gốc của dự án và chạy:
+
 ```bash
-pip install fastapi uvicorn sqlalchemy ultralytics easyocr opencv-python python-multipart openpyxl torch torchvision
+# 1. Tạo môi trường ảo tên là 'venv'
+python -m venv venv
+
+# 2. Kích hoạt môi trường
+# Trên Windows:
+.\venv\Scripts\activate
+# Trên Mac/Linux:
+source venv/bin/activate
+```
+
+### Bước 2: Cài đặt thư viện
+Sau khi kích hoạt venv, chạy lệnh sau để tải các thư viện cần thiết:
+```bash
+pip install -r requirements.txt
 ```
 *(Lưu ý: Nếu máy có Card rời NVIDIA, hãy cài PyTorch bản hỗ trợ CUDA để chạy nhanh hơn)*
 
