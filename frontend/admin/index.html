@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard - Smart Parking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            background: #1a1a1a;
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Login Form Styles */
+        .login-box {
+            background: #2d2d2d;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-align: center;
+            width: 300px;
+            margin-top: 100px; /* Center vertically roughly */
+        }
+        .login-box h2 { margin-bottom: 20px; color: #4CAF50; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #aaa; }
+        .input-group input {
+            width: 100%; padding: 10px; border: 1px solid #444;
+            background: #333; color: white; border-radius: 5px;
+            box-sizing: border-box; /* Fix padding width issue */
+        }
+        .btn-login {
+            width: 100%; padding: 10px; background: #4CAF50; color: white;
+            border: none; border-radius: 5px; font-weight: bold; cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-login:hover { background: #45a049; }
+        .error-msg { color: #F44336; font-size: 13px; margin-top: 10px; min-height: 18px;}
+
+        /* Dashboard Styles (Hidden by default) */
+        #dashboard {
+            display: none;
+            width: 100%; height: 100%;
+            flex-direction: row; /* Sidebar layout */
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 250px; background: #222; display: flex; flex-direction: column;
+            border-right: 1px solid #333;
+        }
+        .sidebar-header { padding: 20px; font-size: 20px; font-weight: bold; color: #4CAF50; border-bottom: 1px solid #333; }
+        .menu-item {
+            padding: 15px 20px; cursor: pointer; border-bottom: 1px solid #2a2a2a; transition: 0.3s;
+        }
+        .menu-item:hover, .menu-item.active { background: #333; color: #4CAF50; }
+        
+        /* Main Content */
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; background: #1a1a1a; }
+        .section { display: none; } /* Hide all sections by default */
+        .section.active { display: block; }
+
+        /* Table Styles */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #2d2d2d; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #444; }
+        th { background: #333; color: #aaa; }
+        tr:hover { background: #383838; }
+        tr.clickable { cursor: pointer; }
+        .status-badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; }
+        .status-parking { background: #FF9800; color: black; }
+        .status-checkout { background: #4CAF50; color: white; }
+        .img-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; cursor: pointer; }
+        
+        /* Action Buttons */
+        .btn-action { padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px; font-weight: bold; }
+        .btn-edit { background: #2196F3; color: white; }
+        .btn-delete { background: #F44336; color: white; }
+        .btn-action:hover { opacity: 0.8; }
+
+        /* Search Bar */
+        .search-box {
+            display: flex; gap: 10px; margin-bottom: 20px;
+        }
+        .search-input {
+            padding: 10px; width: 300px; background: #333; border: 1px solid #555; color: white; border-radius: 5px;
+        }
+        
+        /* Whitelist Styles */
+        .whitelist-item {
+            background: #444; padding: 10px; margin-bottom: 5px; border-radius: 4px; text-align: left; font-size: 14px;
+            display: flex; justify-content: space-between; align-items: center; border: 1px solid #555;
+        }
+        
+        /* Report Form */
+        .report-form { background: #2d2d2d; padding: 20px; border-radius: 8px; max-width: 400px; }
+
+        /* Modal Detail Styles */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8); align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background-color: #2d2d2d; padding: 20px; border-radius: 10px; width: 90%; max-width: 600px;
+            text-align: left; position: relative; border: 1px solid #555;
+        }
+        .close-modal {
+            position: absolute; top: 10px; right: 15px; color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;
+        }
+        .detail-row { margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .detail-label { color: #aaa; font-size: 14px; }
+        .detail-val { color: white; font-weight: bold; font-size: 16px; }
+        .detail-imgs { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
+        .detail-img-box { text-align: center; }
+        .detail-img-box img { max-width: 100%; height: 150px; object-fit: cover; border-radius: 5px; border: 1px solid #555; }
+        .tag-whitelist { background: #9C27B0; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+        .tag-guest { background: #607D8B; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SECTION -->
+    <div id="loginSection" class="login-box">
+        <h2>🔐 Admin Login</h2>
+        <div class="input-group">
+            <label>Tên đăng nhập</label>
+            <input type="text" id="username" placeholder="admin">
+        </div>
+        <div class="input-group">
+            <label>Mật khẩu</label>
+            <input type="password" id="password" placeholder="******">
+        </div>
+        <button class="btn-login" onclick="handleLogin()">Đăng Nhập</button>
+        <div id="loginError" class="error-msg"></div>
+    </div>
+
+    <!-- DASHBOARD SECTION -->
+    <div id="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">🚗 Smart Parking</div>
+            <div class="menu-item active" onclick="switchTab('overview')">📊 Tổng quan</div>
+            <div class="menu-item" onclick="switchTab('search')">🔍 Tra cứu xe</div>
+            <div class="menu-item" onclick="switchTab('whitelist')">🛡️ Quản lý Whitelist</div>
+            <div class="menu-item" onclick="switchTab('report')">📥 Xuất báo cáo</div>
+            <div class="menu-item" onclick="window.location.href='../index.html'" style="margin-top: auto; border-top: 1px solid #333;">⬅️ Về trang quét xe</div>
+            <div class="menu-item" onclick="handleLogout()" style="color: #F44336;">🚪 Đăng xuất</div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            
+            <!-- TAB 1: OVERVIEW (TABLE) -->
+            <div id="tab-overview" class="section active">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Lịch sử xe ra vào (100 lượt gần nhất)</h2>
+                    <button onclick="loadSessions()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; height: 40px;">🔄 Làm mới</button>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Biển số</th>
+                            <th>Giờ vào</th>
+                            <th>Giờ ra</th>
+                            <th>Trạng thái</th>
+                            <th>Phí</th>
+                            <th>Ảnh</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionTableBody">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB 4: SEARCH (NEW) -->
+            <div id="tab-search" class="section">
+                <h2>Tra cứu thông tin xe</h2>
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Nhập biển số (VD: 20 A, 123.94)..." onkeypress="if(event.key==='Enter') searchVehicle()">
+                    <button onclick="searchVehicle()" style="padding: 10px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍 Tìm kiếm</button>
+                </div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Biển số</th>
+                            <th>Giờ vào</th>
+                            <th>Giờ ra</th>
+                            <th>Trạng thái</th>
+                            <th>Phí</th>
+                            <th>Ảnh</th>
+                        </tr>
+                    </thead>
+                    <tbody id="searchTableBody">
+                        <tr><td colspan="7" style="text-align:center; color:#777;">Nhập biển số để tìm kiếm...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- TAB 2: WHITELIST -->
+            <div id="tab-whitelist" class="section">
+                <h2>Quản lý Whitelist (Danh sách xe ưu tiên)</h2>
+                <div style="background: #2d2d2d; padding: 20px; border-radius: 10px; max-width: 600px;">
+                
+                <label style="color:#ccc; font-size:12px;">Biển số:</label>
+                <input type="text" id="wlPlate" placeholder="VD: 30A-123.45" style="width:100%; padding:8px; margin-bottom:10px; background:#333; border:1px solid #555; color:white; text-transform:uppercase;">
+                
+                <label style="color:#ccc; font-size:12px;">Tên chủ xe / Căn hộ:</label>
+                <input type="text" id="wlOwner" placeholder="Nguyễn Văn A" style="width:100%; padding:8px; margin-bottom:10px; background:#333; border:1px solid #555; color:white;">
+                
+                <label style="color:#ccc; font-size:12px;">Ảnh xe (Tùy chọn):</label>
+                <input type="file" id="wlImage" accept="image/*" style="width:100%; margin-bottom:15px; color:#ccc;">
+                
+                <button onclick="addToWhitelist()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">➕ Thêm vào danh sách</button>
+                <div id="wlStatus" style="margin-top: 10px; font-weight: bold; min-height: 20px; text-align: center;"></div>
+
+                <h4 style="color: #ccc; margin: 20px 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">📋 Danh sách hiện tại:</h4>
+                <div id="whitelistContainer" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
+                    <div style="color: #777; text-align: center;">Đang tải...</div>
+                </div>
+                </div>
+            </div>
+            
+            <!-- TAB 3: REPORT -->
+            <div id="tab-report" class="section">
+                <h2>Xuất báo cáo Excel</h2>
+                <div class="report-form">
+                    <label style="display:block; margin-bottom:5px; color:#ccc">Từ ngày:</label>
+                    <input type="datetime-local" id="startDate" class="input-group input" style="width:100%; margin-bottom:15px;">
+                    
+                    <label style="display:block; margin-bottom:5px; color:#ccc">Đến ngày:</label>
+                    <input type="datetime-local" id="endDate" class="input-group input" style="width:100%; margin-bottom:15px;">
+                    
+                    <input type="password" id="secretCode" class="input-group input" placeholder="Mã xác nhận (123)" style="width:100%; margin-bottom:15px;">
+                    
+                    <button onclick="downloadReport(false)" style="width:100%; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer;">📥 Tải Báo Cáo</button>
+                    <button onclick="downloadReport(true)" style="width:100%; background: #F44336; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px;">🗑️ Tải & Xóa Dữ Liệu</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MODAL SỬA SESSION -->
+    <div id="editModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <h2 style="margin-top: 0; color: #2196F3;">✏️ Sửa Thông Tin</h2>
+            <input type="hidden" id="editId">
+            
+            <label style="color:#ccc; font-size:12px;">Biển số:</label>
+            <input type="text" id="editPlate" class="input-group input" style="width:100%; margin-bottom:10px;">
+            
+            <label style="color:#ccc; font-size:12px;">Trạng thái:</label>
+            <select id="editStatus" class="input-group input" style="width:100%; margin-bottom:10px; padding: 10px;">
+                <option value="PARKING">PARKING (Đang gửi)</option>
+                <option value="CHECKOUT">CHECKOUT (Đã ra)</option>
+            </select>
+            
+            <label style="color:#ccc; font-size:12px;">Phí (VNĐ):</label>
+            <input type="number" id="editFee" class="input-group input" style="width:100%; margin-bottom:20px;">
+            
+            <button onclick="saveSession()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">Lưu Thay Đổi</button>
+        </div>
+    </div>
+
+    <!-- MODAL CHI TIẾT XE -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 style="margin-top: 0; color: #4CAF50;">Thông Tin Chi Tiết Xe</h2>
+            
+            <div class="detail-row">
+                <div class="detail-label">Biển số & Loại xe:</div>
+                <div class="detail-val" id="modalPlate">---</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Chủ sở hữu / Ghi chú:</div>
+                <div class="detail-val" id="modalOwner">---</div>
+            </div>
+            <div class="detail-row">
+                <div class="detail-label">Thời gian & Trạng thái:</div>
+                <div class="detail-val" id="modalTime">---</div>
+            </div>
+            
+            <div class="detail-imgs" id="modalImages"></div>
+        </div>
+    </div>
+
+<script>
+    // Cấu hình URL Backend (Sửa lại IP nếu cần)
+    const BACKEND_URL = "https://192.168.43.82:8000"; 
+
+    // --- HELPER: Format biển số (VD: 30A12345 -> 30A-123.45) ---
+    function formatPlate(plate) {
+        if (!plate) return "";
+        const raw = plate.replace(/[^A-Z0-9]/g, "");
+        if (raw.length < 7) return plate; 
+        
+        const prefix = raw.substring(0, 3);
+        const suffix = raw.substring(3);
+        
+        // Nếu 5 số -> 123.45, Nếu 4 số -> 1234
+        return suffix.length === 5 ? `${prefix}-${suffix.substring(0, 3)}.${suffix.substring(3)}` : `${prefix}-${suffix}`;
+    }
+
+    // 1. Kiểm tra trạng thái đăng nhập khi tải trang
+    window.onload = function() {
+        const token = localStorage.getItem("admin_token");
+        if (!token) {
+            // Chưa đăng nhập: Buộc hiển thị form Login, ẩn Dashboard
+            document.getElementById("loginSection").style.display = "block";
+            document.getElementById("dashboard").style.display = "none";
+        } else {
+            // Đã đăng nhập: Vào thẳng Dashboard
+            showDashboard();
+        }
+    };
+
+    // 2. Xử lý Đăng nhập
+    function handleLogin() {
+        const user = document.getElementById("username").value;
+        const pass = document.getElementById("password").value;
+        const errDiv = document.getElementById("loginError");
+
+        if (!user || !pass) {
+            errDiv.innerText = "Vui lòng nhập đầy đủ thông tin!";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("username", user);
+        formData.append("password", pass);
+
+        fetch(`${BACKEND_URL}/api/login`, { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                errDiv.style.color = "#4CAF50"; // Màu xanh lá
+                errDiv.innerText = data.message; // "Đăng nhập thành công!"
+                localStorage.setItem("admin_token", data.token);
+                showDashboard();
+                setTimeout(() => {
+                    showDashboard();
+                }, 500); // Đợi 0.5s để người dùng kịp đọc thông báo
+            } else {
+                errDiv.style.color = "#F44336"; // Màu đỏ
+                errDiv.innerText = data.message;
+            }
+        })
+        .catch(err => errDiv.innerText = "Lỗi kết nối Server!");
+    }
+
+    // 3. Xử lý Đăng xuất
+    function handleLogout() {
+        localStorage.removeItem("admin_token");
+        location.reload();
+    }
+
+    // 4. Chuyển đổi giao diện
+    function showDashboard() {
+        document.getElementById("loginSection").style.display = "none";
+        document.getElementById("dashboard").style.display = "flex";
+        document.body.style.background = "#1a1a1a"; 
+        loadSessions(); // Tải dữ liệu bảng
+        loadWhitelist(); // Tải danh sách whitelist ngay khi vào dashboard
+    }
+
+    // --- LOGIC WHITELIST ---
+    function loadWhitelist() {
+        const container = document.getElementById("whitelistContainer");
+        
+        fetch(`${BACKEND_URL}/api/whitelist`)
+        .then(res => res.json())
+        .then(data => {
+            container.innerHTML = "";
+            if (data.length === 0) {
+                container.innerHTML = "<div style='color:#777; text-align:center'>Danh sách trống</div>";
+                return;
+            }
+            data.forEach(item => {
+                const div = document.createElement("div");
+                div.className = "whitelist-item";
+                const formattedPlate = formatPlate(item.plate_number);
+                
+                // Hiển thị ảnh nhỏ nếu có
+                const imgHtml = item.car_img ? `<img src="${BACKEND_URL}/static/${item.car_img}" style="width:40px; height:40px; object-fit:cover; border-radius:4px; margin-right:10px;">` : '';
+                
+                div.innerHTML = `
+                    <div style="display:flex; align-items:center;">
+                        ${imgHtml}
+                        <div>
+                            <div style="font-weight:bold; color:#fff;">${formattedPlate}</div>
+                            <div style="font-size:12px; color:#aaa;">${item.owner_name || '---'}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        })
+        .catch(err => console.error(err));
+    }
+
+    function addToWhitelist() {
+        const plateInput = document.getElementById("wlPlate");
+        const plate = plateInput.value.trim().toUpperCase();
+        const owner = document.getElementById("wlOwner").value.trim();
+        const fileInput = document.getElementById("wlImage");
+        const statusDiv = document.getElementById("wlStatus");
+        
+        if (!plate || !owner) return alert("Vui lòng nhập đầy đủ Biển số và Tên chủ xe!");
+
+        const regex = /^\d{2}[A-Z]-(\d{3}\.\d{2}|\d{4})$/;
+        if (!regex.test(plate)) {
+            return alert("Biển số sai định dạng!\nVui lòng nhập đúng mẫu: 30A-999.56 hoặc 30A-1234");
+        }
+
+        statusDiv.innerText = "⏳ Đang gửi dữ liệu...";
+        statusDiv.style.color = "#FF9800";
+
+        const formData = new FormData();
+        formData.append("plate_number", plate);
+        formData.append("owner_name", owner);
+        
+        if (fileInput.files.length > 0) {
+            formData.append("image", fileInput.files[0]);
+        }
+
+        fetch(`${BACKEND_URL}/api/whitelist`, { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+            statusDiv.innerText = data.message;
+            if (data.success) {
+                statusDiv.style.color = "#4CAF50";
+                document.getElementById("wlPlate").value = "";
+                document.getElementById("wlOwner").value = "";
+                document.getElementById("wlImage").value = "";
+                loadWhitelist(); 
+                setTimeout(() => { statusDiv.innerText = ""; }, 3000);
+            } else {
+                statusDiv.style.color = "#F44336";
+            }
+        })
+        .catch(err => {
+            statusDiv.innerText = "❌ Lỗi kết nối!";
+            statusDiv.style.color = "#F44336";
+            console.error(err);
+        });
+    }
+
+    // --- LOGIC DASHBOARD & TABS ---
+    function switchTab(tabName) {
+        // Hide all sections
+        document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+        // Show selected section
+        document.getElementById('tab-' + tabName).classList.add('active');
+        
+        // Update menu active state
+        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    function loadSessions() {
+        const tbody = document.getElementById("sessionTableBody");
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Đang tải dữ liệu...</td></tr>";
+
+        fetch(`${BACKEND_URL}/api/sessions?limit=100`)
+        .then(res => res.json())
+        .then(data => {
+            tbody.innerHTML = "";
+            if (data.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Chưa có dữ liệu</td></tr>";
+                return;
+            }
+            
+            data.forEach(s => {
+                const tr = document.createElement("tr");
+                tr.className = "clickable";
+                const formattedPlate = formatPlate(s.plate_number);
+                
+                // Format Status
+                let statusHtml = s.status === "PARKING" 
+                    ? `<span class="status-badge status-parking">Đang gửi</span>` 
+                    : `<span class="status-badge status-checkout">Đã ra</span>`;
+                
+                // Format Time
+                const inTime = s.checkin_time ? new Date(s.checkin_time).toLocaleString('vi-VN') : "";
+                const outTime = s.checkout_time ? new Date(s.checkout_time).toLocaleString('vi-VN') : "";
+                
+                // Format Images
+                const imgIn = s.checkin_img ? `<a href="${BACKEND_URL}/static/${s.checkin_img}" target="_blank"><img src="${BACKEND_URL}/static/${s.checkin_img}" class="img-thumb"></a>` : "";
+                const imgOut = s.checkout_img ? `<a href="${BACKEND_URL}/static/${s.checkout_img}" target="_blank"><img src="${BACKEND_URL}/static/${s.checkout_img}" class="img-thumb"></a>` : "";
+
+                tr.innerHTML = `
+                    <td>#${s.id}</td>
+                    <td style="font-weight:bold; color:#fff">${formattedPlate || '---'}</td>
+                    <td>${inTime}</td>
+                    <td>${outTime}</td>
+                    <td>${statusHtml}</td>
+                    <td>${s.fee ? s.fee.toLocaleString() : 0} đ</td>
+                    <td>${imgIn} ${imgOut}</td>
+                    <td>
+                        <button class="btn-action btn-edit" onclick="openEditModal(event, ${s.id}, '${formattedPlate}', '${s.status}', ${s.fee})">✏️</button>
+                        <button class="btn-action btn-delete" onclick="deleteSession(event, ${s.id})">🗑️</button>
+                    </td>
+                `;
+                
+                // Gán sự kiện click để mở modal (truyền toàn bộ object s vào)
+                // Lưu ý: data từ API /api/sessions chưa có thông tin whitelist, 
+                // nhưng khi search thì sẽ có. Ta xử lý hiển thị modal linh hoạt.
+                tr.onclick = function(e) {
+                    // Nếu click vào ảnh (thẻ a) thì không mở modal
+                    if (e.target.tagName === 'IMG' || e.target.tagName === 'A' || e.target.tagName === 'BUTTON') return;
+                    showDetail(s);
+                };
+
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => console.error(err));
+    }
+
+    // --- LOGIC SỬA / XÓA SESSION ---
+    function deleteSession(event, id) {
+        event.stopPropagation(); // Ngăn không cho mở modal chi tiết
+        if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.")) return;
+
+        fetch(`${BACKEND_URL}/api/sessions/${id}`, { method: "DELETE" })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            if (data.success) loadSessions();
+        })
+        .catch(err => alert("Lỗi kết nối!"));
+    }
+
+    function openEditModal(event, id, plate, status, fee) {
+        event.stopPropagation(); // Ngăn không cho mở modal chi tiết
+        document.getElementById("editId").value = id;
+        document.getElementById("editPlate").value = plate;
+        document.getElementById("editStatus").value = status;
+        document.getElementById("editFee").value = fee;
+        document.getElementById("editModal").style.display = "flex";
+    }
+
+    function closeEditModal() {
+        document.getElementById("editModal").style.display = "none";
+    }
+
+    function saveSession() {
+        const id = document.getElementById("editId").value;
+        const plate = document.getElementById("editPlate").value;
+        const status = document.getElementById("editStatus").value;
+        const fee = document.getElementById("editFee").value;
+
+        const formData = new FormData();
+        formData.append("plate_number", plate);
+        formData.append("status", status);
+        formData.append("fee", fee);
+
+        fetch(`${BACKEND_URL}/api/sessions/${id}`, { method: "PUT", body: formData })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            if (data.success) {
+                closeEditModal();
+                loadSessions();
+            }
+        })
+        .catch(err => alert("Lỗi kết nối!"));
+    }
+
+    // --- LOGIC TÌM KIẾM & MODAL ---
+    function searchVehicle() {
+        const query = document.getElementById("searchInput").value.trim();
+        if (!query) return alert("Vui lòng nhập từ khóa!");
+
+        // Chuyển sang tab search nếu đang ở tab khác (đề phòng)
+        if (!document.getElementById('tab-search').classList.contains('active')) switchTab('search');
+
+        const tbody = document.getElementById("searchTableBody");
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>⏳ Đang tìm kiếm...</td></tr>";
+
+        fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+            tbody.innerHTML = "";
+            if (data.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Không tìm thấy xe nào khớp!</td></tr>";
+                return;
+            }
+            data.forEach(s => {
+                const tr = document.createElement("tr");
+                tr.className = "clickable";
+                const formattedPlate = formatPlate(s.plate_number);
+                
+                let statusHtml = "";
+                if (s.status === "PARKING") statusHtml = `<span class="status-badge status-parking">Đang gửi</span>`;
+                else if (s.status === "CHECKOUT") statusHtml = `<span class="status-badge status-checkout">Đã ra</span>`;
+                else statusHtml = `<span class="status-badge" style="background:#607D8B; color:white">Chưa gửi xe</span>`;
+
+                const inTime = s.checkin_time ? new Date(s.checkin_time).toLocaleString('vi-VN') : "";
+                const outTime = s.checkout_time ? new Date(s.checkout_time).toLocaleString('vi-VN') : "";
+                const imgIn = s.checkin_img ? `<img src="${BACKEND_URL}/static/${s.checkin_img}" class="img-thumb">` : "";
+                const imgOut = s.checkout_img ? `<img src="${BACKEND_URL}/static/${s.checkout_img}" class="img-thumb">` : "";
+
+                // Thêm icon Whitelist nếu có
+                let plateDisplay = formattedPlate;
+                if (s.is_whitelist) plateDisplay += ` <span style="color:#9C27B0">★</span>`;
+
+                tr.innerHTML = `
+                    <td>#${s.id}</td>
+                    <td style="font-weight:bold; color:#fff">${plateDisplay}</td>
+                    <td>${inTime}</td>
+                    <td>${outTime}</td>
+                    <td>${statusHtml}</td>
+                    <td>${s.fee ? s.fee.toLocaleString() : 0} đ</td>
+                    <td>${imgIn} ${imgOut}</td>
+                `;
+                
+                tr.onclick = () => showDetail(s);
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => alert("Lỗi tìm kiếm: " + err));
+    }
+
+    function showDetail(s) {
+        const modal = document.getElementById("detailModal");
+        
+        // Xác định loại xe (Nếu s.is_whitelist có giá trị (từ search) thì dùng, nếu không (từ loadSessions) thì mặc định ẩn hoặc check lại sau)
+        // Ở đây ta hiển thị dựa trên dữ liệu có sẵn.
+        let typeTag = "";
+        let ownerText = s.owner_name || "---";
+        
+        if (s.is_whitelist === true) {
+            typeTag = `<span class="tag-whitelist">Xe Đăng Ký (Whitelist)</span>`;
+        } else if (s.is_whitelist === false) {
+            typeTag = `<span class="tag-guest">Xe Vãng Lai</span>`;
+        } else {
+            // Trường hợp load mặc định chưa có info whitelist -> Hiển thị chung chung
+            typeTag = `<span class="tag-guest" style="background:#555">Chưa kiểm tra</span>`;
+        }
+
+        document.getElementById("modalPlate").innerHTML = `${formatPlate(s.plate_number)} ${typeTag}`;
+        document.getElementById("modalOwner").innerText = ownerText;
+        
+        const inTime = s.checkin_time ? new Date(s.checkin_time).toLocaleString('vi-VN') : "";
+        const outTime = s.checkout_time ? new Date(s.checkout_time).toLocaleString('vi-VN') : "Chưa ra";
+        
+        let statusText = s.status;
+        if(s.status === "NO_SESSION") statusText = "Chưa có lịch sử gửi xe";
+        
+        document.getElementById("modalTime").innerHTML = `Vào: ${inTime}<br>Ra: ${outTime}<br>Trạng thái: <b>${statusText}</b>`;
+
+        // Images
+        const imgContainer = document.getElementById("modalImages");
+        imgContainer.innerHTML = "";
+        if (s.checkin_img) {
+            imgContainer.innerHTML += `
+                <div class="detail-img-box">
+                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh vào / Đăng ký</div>
+                    <a href="${BACKEND_URL}/static/${s.checkin_img}" target="_blank">
+                        <img src="${BACKEND_URL}/static/${s.checkin_img}">
+                    </a>
+                </div>`;
+        }
+        if (s.checkout_img) {
+            imgContainer.innerHTML += `
+                <div class="detail-img-box">
+                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh ra</div>
+                    <a href="${BACKEND_URL}/static/${s.checkout_img}" target="_blank">
+                        <img src="${BACKEND_URL}/static/${s.checkout_img}">
+                    </a>
+                </div>`;
+        }
+
+        modal.style.display = "flex";
+    }
+
+    function closeModal() {
+        document.getElementById("detailModal").style.display = "none";
+    }
+    
+    // Đóng modal khi click ra ngoài
+    window.onclick = function(event) {
+        const modal = document.getElementById("detailModal");
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    // --- LOGIC REPORT ---
+    function downloadReport(deleteData) {
+        const start = document.getElementById("startDate").value;
+        const end = document.getElementById("endDate").value;
+        const code = document.getElementById("secretCode").value;
+
+        if (!start || !end || !code) return alert("Vui lòng nhập đầy đủ thông tin!");
+
+        if (deleteData && !confirm("CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu và ảnh trong khoảng thời gian này sau khi tải báo cáo không?")) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("start_time", start);
+        formData.append("end_time", end);
+        formData.append("secret_code", code);
+        formData.append("delete_data", deleteData);
+
+        fetch(`${BACKEND_URL}/report`, { method: "POST", body: formData })
+        .then(res => res.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BaoCao_${Date.now()}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            if (deleteData) alert("Đã tải báo cáo và xóa dữ liệu thành công!");
+        })
+        .catch(err => alert("Lỗi tải báo cáo!"));
+    }
+</script>
+
+</body>
+</html>

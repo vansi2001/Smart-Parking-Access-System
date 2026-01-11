@@ -6,6 +6,7 @@ from datetime import datetime
 from io import BytesIO
 from fastapi import FastAPI, File, UploadFile, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,13 @@ app.add_middleware(
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Tạo thư mục con cho ảnh whitelist
+WHITELIST_DIR = os.path.join(UPLOAD_DIR, 'whitelist_image')
+os.makedirs(WHITELIST_DIR, exist_ok=True)
+
+# Mount thư mục uploads để xem ảnh qua URL /static/
+app.mount("/static", StaticFiles(directory=UPLOAD_DIR), name="static")
+
 # create crops folder
 CROP_DIR = os.path.join(os.path.dirname(__file__), 'crops')
 os.makedirs(CROP_DIR, exist_ok=True)
@@ -40,6 +48,7 @@ async def upload_image(
     image: UploadFile = File(...), 
     status: int = Form(...), 
     plate_number: str = Form(None), # Nhận thêm biển số nhập tay (Optional)
+    confirmed: int = Form(0),       # 0: Chưa xác nhận, 1: Đã xác nhận (cho xe vãng lai)
     db: Session = Depends(get_db)
 ):
     """Receive uploaded image and a status field (1=checkin,0=checkout).
@@ -85,17 +94,31 @@ async def upload_image(
             "message": "⚠️ Không đọc được biển số! Vui lòng chụp lại."
         }
 
-    # 2. Kiểm tra regex định dạng 5 số: 2 số + 1 chữ + '-' + 3 số + '.' + 2 số
-    # Ví dụ hợp lệ: 30A-123.45. Ví dụ không hợp lệ: 30A-1234 (4 số), 06A-4253 (4 số)
-    if not re.match(r'^\d{2}[A-Z]-\d{3}\.\d{2}$', plate_text):
+    # 2. Kiểm tra regex định dạng: Chấp nhận cả 5 số (có chấm) và 4 số
+    # Ví dụ hợp lệ: 30A-123.45 HOẶC 30A-1234
+    if not re.match(r'^\d{2}[A-Z]-(\d{3}\.\d{2}|\d{4})$', plate_text):
         return {
             "success": False,
             "id": None,
             "cropped_image": None,
             "plate_number": plate_text,
             "fee": 0,
-            "message": f"⚠️ Biển số sai định dạng: {plate_text}. Yêu cầu biển 5 số (VD: 30A-123.45)"
+            "message": f"⚠️ Biển số sai định dạng: {plate_text}. Yêu cầu đúng mẫu (VD: 30A-123.45 hoặc 30A-1234)"
         }
+
+    # --- LOGIC MỚI: KIỂM TRA XE VÃNG LAI (CHỈ ÁP DỤNG KHI CHECK-IN) ---
+    if int(status) == 1:
+        # Kiểm tra whitelist
+        is_whitelisted = crud.check_whitelist(db, plate_text)
+        
+        # Nếu KHÔNG phải whitelist VÀ CHƯA được xác nhận (confirmed=0)
+        if not is_whitelisted and confirmed == 0:
+            return {
+                "success": False,
+                "need_confirmation": True, # Cờ báo hiệu cho FE
+                "plate_number": plate_text,
+                "message": f"⚠️ Xe vãng lai: {plate_text}. Cần xác nhận để cho vào."
+            }
 
     # SAU KHI xử lý ảnh xong, mới tiến hành lưu vào DB
     # Kết hợp status, tên file ảnh và biển số vừa đọc được
@@ -205,3 +228,164 @@ async def export_report(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+# --- CÁC API MỚI CHO CHỨC NĂNG "PARKING CONTROL WIDGET" ---
+
+@app.get("/api/sessions")
+def read_sessions(limit: int = 100, db: Session = Depends(get_db)):
+    """Lấy danh sách lịch sử ra vào cho Admin Dashboard"""
+    return crud.get_recent_sessions(db, limit)
+
+@app.delete("/api/sessions/{session_id}")
+def delete_session_endpoint(session_id: int, db: Session = Depends(get_db)):
+    """Xóa một lượt gửi xe"""
+    success = crud.delete_session(db, session_id, UPLOAD_DIR, CROP_DIR)
+    if success:
+        return {"success": True, "message": "Đã xóa bản ghi thành công"}
+    return {"success": False, "message": "Không tìm thấy bản ghi"}
+
+@app.put("/api/sessions/{session_id}")
+async def update_session_endpoint(
+    session_id: int,
+    plate_number: str = Form(...),
+    status: str = Form(...),
+    fee: float = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Cập nhật thông tin lượt gửi xe"""
+    updated = crud.update_session(db, session_id, plate_number, status, fee)
+    if updated:
+        return {"success": True, "message": "Cập nhật thành công"}
+    return {"success": False, "message": "Lỗi cập nhật hoặc không tìm thấy ID"}
+
+@app.get("/api/search")
+def search_vehicle(query: str, db: Session = Depends(get_db)):
+    """
+    Tìm kiếm xe theo biển số và trả về thông tin chi tiết (kèm trạng thái Whitelist).
+    """
+    # Tối ưu: Xóa khoảng trắng, gạch ngang, dấu chấm để tìm linh hoạt (VD: "30A-123" -> "30A123")
+    clean_query = query.strip().upper().replace(" ", "").replace("-", "").replace(".", "")
+    
+    # 1. Tìm trong lịch sử ra vào (ParkingSession)
+    sessions = crud.search_sessions_by_plate(db, clean_query)
+    
+    results = []
+    # Xử lý kết quả từ lịch sử
+    for s in sessions:
+        # 2. Kiểm tra xem xe này có trong Whitelist không
+        wl_item = crud.check_whitelist(db, s.plate_number)
+        
+        is_whitelist = True if wl_item else False
+        owner_info = wl_item.owner_name if wl_item else "Khách vãng lai"
+        
+        results.append({
+            "id": s.id,
+            "plate_number": s.plate_number,
+            "checkin_time": s.checkin_time,
+            "checkout_time": s.checkout_time,
+            "status": s.status,
+            "fee": s.fee,
+            "checkin_img": s.checkin_img,
+            "checkout_img": s.checkout_img,
+            "is_whitelist": is_whitelist,
+            "owner_name": owner_info
+        })
+
+    # 2. Tìm thêm trong Whitelist (để tìm những xe chưa gửi lần nào hoặc không có trong history gần nhất)
+    # Chỉ tìm nếu kết quả history ít hoặc để bổ sung
+    whitelist_hits = crud.search_whitelist_by_plate(db, clean_query)
+    
+    # Lấy danh sách biển số đã có trong results để tránh trùng lặp
+    existing_plates = {r["plate_number"] for r in results}
+
+    for w in whitelist_hits:
+        if w.plate_number not in existing_plates:
+            results.append({
+                "id": f"WL-{w.id}", # ID giả định
+                "plate_number": w.plate_number,
+                "checkin_time": None,
+                "checkout_time": None,
+                "status": "NO_SESSION", # Trạng thái đặc biệt: Chưa gửi xe
+                "fee": 0,
+                "checkin_img": w.car_img, # Dùng ảnh đăng ký làm ảnh checkin để hiển thị
+                "checkout_img": None,
+                "is_whitelist": True,
+                "owner_name": w.owner_name
+            })
+
+    return results
+
+@app.post("/api/login")
+async def login(
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    """API Đăng nhập cho Admin"""
+    # Trong thực tế nên lưu user trong DB và mã hóa mật khẩu
+    # Ở đây demo hardcode: admin / admin123
+    if username == "admin" and password == "admin123":
+        return {"success": True, "token": "fake_token_secure_123", "message": "Đăng nhập thành công!"}
+    return {"success": False, "message": "Sai tên đăng nhập hoặc mật khẩu!"}
+
+@app.post("/api/check-access")
+async def check_access_manual(
+    plate_number: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    API cho nhân viên nhập tay biển số để kiểm tra nhanh.
+    Input: Biển số xe (VD: 30A-123.45)
+    Output: Cho phép (Xanh) hoặc Từ chối (Đỏ)
+    """
+    # Tìm trong whitelist
+    item = crud.check_whitelist(db, plate_number)
+    
+    if item:
+        return {
+            "allowed": True,
+            "color": "green",
+            "message": f"✅ ĐƯỢC PHÉP VÀO\nChủ xe: {item.owner_name}",
+            "plate_number": item.plate_number
+        }
+    else:
+        return {
+            "allowed": False,
+            "color": "red",
+            "message": "⛔ KHÔNG CÓ TRONG DANH SÁCH\nVui lòng kiểm tra lại hoặc thu phí vãng lai.",
+            "plate_number": plate_number
+        }
+
+@app.get("/api/whitelist")
+def get_whitelist(db: Session = Depends(get_db)):
+    """Lấy danh sách xe được phép"""
+    return crud.get_all_whitelist(db)
+
+@app.post("/api/whitelist")
+async def add_whitelist(
+    plate_number: str = Form(...),
+    owner_name: str = Form(...),
+    image: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    """Thêm xe vào danh sách"""
+    car_img_name = None
+    dest_path = None
+    # Chỉ xử lý nếu có file và file có tên (tránh trường hợp gửi file rỗng)
+    if image and image.filename:
+        # Lưu ảnh chủ xe vào thư mục uploads
+        ts = int(time.time())
+        filename = os.path.basename(image.filename)
+        safe_name = f"{ts}_{filename}"
+        dest_path = os.path.join(WHITELIST_DIR, safe_name)
+        content = await image.read()
+        with open(dest_path, 'wb') as f:
+            f.write(content)
+        car_img_name = f"whitelist_image/{safe_name}"
+
+    item, msg = crud.add_to_whitelist(db, plate_number, owner_name, car_img_name)
+    if not item:
+        # Nếu thêm thất bại (VD: trùng biển số), xóa ảnh vừa lưu để tránh rác
+        if dest_path and os.path.exists(dest_path):
+            os.remove(dest_path)
+        return {"success": False, "message": msg}
+    return {"success": True, "message": msg, "data": item}

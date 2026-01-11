@@ -32,6 +32,16 @@ class ParkingSession(Base):
     
     fee = Column(Float, default=0.0)
 
+# Bảng danh sách xe được phép (Whitelist)
+class Whitelist(Base):
+    __tablename__ = "whitelist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plate_number = Column(String, unique=True, index=True) # Unique để không trùng, Index để tìm nhanh
+    owner_name = Column(String, nullable=True)             # Tên chủ xe/Cư dân
+    car_img = Column(String, nullable=True)                # Ảnh xe/chủ xe
+    created_at = Column(DateTime, default=datetime.now)
+
 # 3. Hàm tạo bảng (Chạy 1 lần đầu để sinh file .db)
 def init_db():
     Base.metadata.create_all(bind=engine)

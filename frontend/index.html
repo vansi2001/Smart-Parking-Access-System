@@ -60,7 +60,19 @@
             cursor: pointer;
         }
         #toggleManualBtn { background: #FF9800; }
-        #toggleReportBtn { background: #4CAF50; } /* Nút báo cáo màu xanh */
+        #toggleQuickBtn { background: #9C27B0; }
+
+        /* Quick List Styles */
+        .quick-item {
+            background: #333; padding: 10px; margin-bottom: 8px; border-radius: 5px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid #444;
+        }
+        .quick-info { text-align: left; }
+        .quick-actions { display: flex; gap: 10px; }
+        .btn-quick { padding: 8px 15px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; font-size: 14px; }
+        .btn-in { background: #00AAFF; }
+        .btn-out { background: #FF9800; }
 
         /* Form Overlay chung */
         .overlay {
@@ -78,13 +90,14 @@
             text-align: center; border: 1px solid #444;
         }
         .input-field { width: 90%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: none; }
+        
     </style>
 </head>
 
 <body>
 
 <div class="top-bar">
-    <button id="toggleReportBtn" class="top-btn" onclick="toggleReport()">📊 Báo cáo</button>
+    <button id="toggleQuickBtn" class="top-btn" onclick="toggleQuickList()">⚡ Ra/Vào Nhanh</button>
     <button id="toggleManualBtn" class="top-btn" onclick="toggleManual()">✎ Nhập tay</button>
 </div>
 
@@ -108,22 +121,38 @@
     </div>
 </div>
 
-<!-- Form Báo cáo -->
-<div id="reportOverlay" class="overlay">
+<!-- Form Quick List Whitelist -->
+<div id="quickListOverlay" class="overlay">
+    <div class="form-box" style="max-width: 500px; width: 90%;">
+        <h3 style="margin-top: 0; color: #9C27B0;">⚡ Danh Sách Xe Ưu Tiên</h3>
+        <input type="text" id="quickSearchInput" class="input-field" placeholder="🔍 Nhập số cuối biển số..." onkeyup="filterQuickList()" style="text-align: center; font-size: 16px; font-weight: bold;">
+        <div id="quickListContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
+            <!-- Items will be loaded here -->
+        </div>
+        <button onclick="toggleQuickList()" style="background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
+    </div>
+</div>
+
+<!-- Modal Xác Nhận Xe Vãng Lai -->
+<div id="confirmOverlay" class="overlay">
+    <div class="form-box" style="border: 2px solid #FF9800;">
+        <h3 style="margin-top: 0; color: #FF9800;">⚠️ Cảnh Báo Xe Vãng Lai</h3>
+        <p id="confirmMsg" style="font-size: 18px; font-weight: bold; margin: 20px 0;">Biển số: ---</p>
+        <div style="display: flex; justify-content: space-around; gap: 10px;">
+            <button onclick="handleGuestDecision(1)" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">✅ Cho vào</button>
+            <button onclick="handleGuestDecision(0)" style="flex: 1; background: #F44336; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">❌ Hủy bỏ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Sửa Nhanh Sau Check-in -->
+<div id="quickEditOverlay" class="overlay">
     <div class="form-box">
-        <h3 style="margin-top: 0; color: #4CAF50;">Xuất Báo Cáo</h3>
-        <label style="display:block; text-align:left; margin-bottom:5px; color:#ccc">Từ ngày:</label>
-        <input type="datetime-local" id="startDate" class="input-field">
-        
-        <label style="display:block; text-align:left; margin-bottom:5px; color:#ccc">Đến ngày:</label>
-        <input type="datetime-local" id="endDate" class="input-field">
-        
-        <input type="password" id="secretCode" class="input-field" placeholder="Mã xác nhận (123)" style="text-align:center">
-        
-        <button onclick="downloadReport(false)" style="width:100%; background: #2196F3; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-bottom: 10px;">📥 Tải Báo Cáo</button>
-        <button onclick="downloadReport(true)" style="width:100%; background: #F44336; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">🗑️ Tải & Xóa Dữ Liệu</button>
-        
-        <button onclick="toggleReport()" style="margin-top: 20px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
+        <h3 style="margin-top: 0; color: #2196F3;">Sửa Biển Số</h3>
+        <p style="color: #aaa; font-size: 12px;">Cập nhật biển số cho lượt xe vừa vào</p>
+        <input type="text" id="quickEditInput" class="input-field" style="font-size: 18px; text-align: center; text-transform: uppercase;">
+        <button onclick="submitQuickEdit()" style="width:100%; background: #2196F3; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Lưu Thay Đổi</button>
+        <button onclick="closeQuickEdit()" style="margin-top: 10px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Hủy</button>
     </div>
 </div>
 
@@ -133,6 +162,24 @@ const canvas = document.getElementById("canvas");
 const statusText = document.getElementById("status");
 const checkinBtn = document.getElementById("checkinBtn");
 const checkoutBtn = document.getElementById("checkoutBtn");
+let cachedWhitelist = []; // Lưu cache danh sách để tìm kiếm nhanh
+let suggestedSearch = ""; // Lưu gợi ý tìm kiếm từ lần quét cuối
+let currentBlob = null;   // Lưu ảnh tạm thời để gửi lại nếu xác nhận
+let currentPlate = "";    // Lưu biển số tạm thời
+let lastSessionId = null; // Lưu ID phiên làm việc gần nhất để sửa nhanh
+
+// --- HELPER: Format biển số (VD: 30A12345 -> 30A-123.45) ---
+function formatPlate(plate) {
+    if (!plate) return "";
+    const raw = plate.replace(/[^A-Z0-9]/g, ""); // Chỉ lấy chữ và số
+    if (raw.length < 7) return plate; // Quá ngắn thì giữ nguyên
+    
+    const prefix = raw.substring(0, 3);
+    const suffix = raw.substring(3);
+    
+    // Nếu 5 số (VD: 12345) -> 123.45, Nếu 4 số (VD: 1234) -> 1234
+    return suffix.length === 5 ? `${prefix}-${suffix.substring(0, 3)}.${suffix.substring(3)}` : `${prefix}-${suffix}`;
+}
 
 // 🔧 ĐỊA CHỈ BACKEND (sửa IP cho đúng)
 // Lưu ý: Phải dùng https:// và đúng IP của máy tính chạy backend
@@ -154,7 +201,7 @@ navigator.mediaDevices.getUserMedia({
 });
 
 // 2️⃣ Khi bấm nút Check-in / Check-out — gửi kèm trường `status` (1 = checkin, 0 = checkout)
-async function sendCapture(status, manualPlate = null) {
+async function sendCapture(status, manualPlate = null, confirmed = 0) {
     if (!video.videoWidth) {
         statusText.innerText = "Camera chưa sẵn sàng!";
         return;
@@ -166,14 +213,21 @@ async function sendCapture(status, manualPlate = null) {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0);
 
-    canvas.toBlob(blob => {
+    // Nếu là gửi lại (confirmed=1), dùng blob cũ. Nếu chụp mới, tạo blob mới.
+    const processBlob = (blob) => {
+        if (!blob) return;
+        currentBlob = blob; // Lưu lại để dùng nếu cần xác nhận
+
         const formData = new FormData();
         formData.append("image", blob, "plate.jpg");
         formData.append("status", String(status));
+        formData.append("confirmed", String(confirmed)); // Gửi trạng thái xác nhận
         
         if (manualPlate) {
             formData.append("plate_number", manualPlate);
         }
+        // Nếu đang xác nhận lại biển số cũ (trường hợp AI đọc)
+        if (confirmed === 1 && currentPlate && !manualPlate) formData.append("plate_number", currentPlate);
 
         statusText.innerText = "Đang gửi ảnh...";
 
@@ -184,13 +238,33 @@ async function sendCapture(status, manualPlate = null) {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
+                // --- LOGIC GỢI Ý TÌM KIẾM ---
+                // Nếu quét được biển số, lấy 4 ký tự cuối để làm gợi ý cho Quick List
+                if (data.plate_number) {
+                    // Xóa ký tự đặc biệt, chỉ lấy chữ số
+                    const cleanPlate = data.plate_number.replace(/[^a-zA-Z0-9]/g, "");
+                    suggestedSearch = cleanPlate.length > 4 ? cleanPlate.slice(-4) : cleanPlate;
+                }
+
+                lastSessionId = data.id; // Lưu ID để dùng cho chức năng sửa nhanh
+
                 statusText.style.backgroundColor = "rgba(0, 0, 0, 0.7)"; // Màu đen (bình thường)
                 if (status === 1) {
-                    statusText.innerText = `✅ ${data.message}\n🚗 Biển số: ${data.plate_number || 'Không rõ'}`;
+                    // Check-in: Hiển thị thêm nút Sửa
+                    const plateDisplay = data.plate_number || 'Không rõ';
+                    statusText.innerHTML = `✅ ${data.message}<br>🚗 Biển số: <b>${plateDisplay}</b> <button onclick="openQuickEdit('${plateDisplay}')" style="background:#FF9800; border:none; color:white; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; margin-left:5px;">✏️ Sửa</button>`;
                 } else {
+                    // Check-out
                     const feeStr = data.fee ? data.fee.toLocaleString('vi-VN') : "0";
                     statusText.innerText = `✅ ${data.message}\n🚗 Biển số: ${data.plate_number || 'Không rõ'}\n💰 Phí: ${feeStr} VNĐ`;
                 }
+            } else if (data.need_confirmation) {
+                // --- TRƯỜNG HỢP XE VÃNG LAI CẦN XÁC NHẬN ---
+                statusText.style.backgroundColor = "rgba(255, 152, 0, 0.8)"; // Màu cam
+                statusText.innerText = "⚠️ " + data.message;
+                currentPlate = data.plate_number; // Lưu biển số BE đọc được
+                showConfirmModal(data.plate_number);
+                
             } else {
                 statusText.style.backgroundColor = "rgba(255, 0, 0, 0.8)"; // Màu đỏ (lỗi/cảnh báo)
                 statusText.innerText = data.message || "⚠️ Lỗi từ Server";
@@ -201,7 +275,13 @@ async function sendCapture(status, manualPlate = null) {
             console.error(err);
         });
 
-    }, "image/jpeg", 0.8);
+    };
+
+    if (confirmed === 1 && currentBlob) {
+        processBlob(currentBlob); // Dùng lại ảnh cũ
+    } else {
+        canvas.toBlob(processBlob, "image/jpeg", 0.8); // Chụp ảnh mới
+    }
 }
 
 checkinBtn.addEventListener('click', () => sendCapture(1));
@@ -226,72 +306,154 @@ function sendManual(status) {
     sendCapture(status, plate); // Gửi kèm biển số nhập tay
 }
 
-// --- Logic cho Báo cáo ---
-function toggleReport() {
-    const overlay = document.getElementById("reportOverlay");
+// --- Logic cho Quick List Whitelist ---
+function toggleQuickList() {
+    const overlay = document.getElementById("quickListOverlay");
     overlay.style.display = overlay.style.display === "flex" ? "none" : "flex";
-    
-    // Set default time (Hôm nay)
     if (overlay.style.display === "flex") {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById("endDate").value = now.toISOString().slice(0,16);
+        // Khi mở, tự động điền gợi ý tìm kiếm (nếu có)
+        const searchInput = document.getElementById("quickSearchInput");
+        searchInput.value = suggestedSearch;
+        searchInput.focus();
         
-        const yesterday = new Date(now);
-        yesterday.setDate(yesterday.getDate() - 1);
-        document.getElementById("startDate").value = yesterday.toISOString().slice(0,16);
+        loadQuickWhitelist();
     }
 }
 
-function downloadReport(deleteData) {
-    const start = document.getElementById("startDate").value;
-    const end = document.getElementById("endDate").value;
-    const code = document.getElementById("secretCode").value;
-
-    if (!start || !end || !code) {
-        alert("Vui lòng nhập đầy đủ thông tin!");
-        return;
-    }
+function loadQuickWhitelist() {
+    const container = document.getElementById("quickListContainer");
+    container.innerHTML = "<div style='text-align:center; color:#777'>Đang tải...</div>";
     
-    if (deleteData && !confirm("CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu và ảnh trong khoảng thời gian này sau khi tải báo cáo không?")) {
+    const url = BACKEND_URL.replace("/upload", "/api/whitelist");
+    
+    fetch(url)
+    .then(res => res.json())
+    .then(data => {
+        container.innerHTML = "";
+        cachedWhitelist = data; // Lưu vào biến toàn cục
+        filterQuickList(); // Gọi hàm hiển thị (có áp dụng lọc)
+    })
+    .catch(err => {
+        container.innerHTML = "<div style='text-align:center; color:red'>Lỗi kết nối</div>";
+        console.error(err);
+    });
+}
+
+function filterQuickList() {
+    const container = document.getElementById("quickListContainer");
+    const query = document.getElementById("quickSearchInput").value.toUpperCase().trim();
+    
+    if (cachedWhitelist.length === 0) {
+        container.innerHTML = "<div style='text-align:center; color:#777'>Danh sách trống</div>";
         return;
     }
+
+    // Lọc danh sách
+    let filtered = cachedWhitelist.filter(item => {
+        // Chuẩn hóa biển số trong DB để so sánh (bỏ dấu chấm, gạch)
+        const rawPlate = item.plate_number.replace(/[^A-Z0-9]/g, "");
+        return rawPlate.includes(query);
+    });
+
+    // Sắp xếp: Ưu tiên biển số có ĐUÔI khớp với từ khóa (tìm theo số cuối)
+    filtered.sort((a, b) => {
+        const rawA = a.plate_number.replace(/[^A-Z0-9]/g, "");
+        const rawB = b.plate_number.replace(/[^A-Z0-9]/g, "");
+        const endsWithA = rawA.endsWith(query);
+        const endsWithB = rawB.endsWith(query);
+        if (endsWithA && !endsWithB) return -1; // A lên đầu
+        if (!endsWithA && endsWithB) return 1;  // B lên đầu
+        return 0;
+    });
+
+    container.innerHTML = "";
+    if (filtered.length === 0) {
+        container.innerHTML = "<div style='text-align:center; color:#777'>Không tìm thấy xe phù hợp</div>";
+        return;
+    }
+
+    filtered.forEach(item => {
+        const div = document.createElement("div");
+        const formattedPlate = formatPlate(item.plate_number); // Format trước khi hiển thị và dùng
+        div.className = "quick-item";
+        div.innerHTML = `
+            <div class="quick-info">
+                <div style="font-weight:bold; color:#fff">${formattedPlate}</div>
+                <div style="color:#aaa; font-size:12px;">${item.owner_name || '---'}</div>
+            </div>
+            <div class="quick-actions">
+                <button class="btn-quick btn-in" onclick="handleQuickAction('${formattedPlate}', 1)">Vào</button>
+                <button class="btn-quick btn-out" onclick="handleQuickAction('${formattedPlate}', 0)">Ra</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function handleQuickAction(plate, status) {
+    toggleQuickList(); // Đóng danh sách
+    sendCapture(status, plate); // Gọi hàm gửi ảnh kèm biển số
+}
+
+// --- Logic Xác Nhận Xe Vãng Lai ---
+function showConfirmModal(plate) {
+    const overlay = document.getElementById("confirmOverlay");
+    document.getElementById("confirmMsg").innerText = `Biển số: ${formatPlate(plate)}`;
+    overlay.style.display = "flex";
+}
+
+function handleGuestDecision(decision) {
+    document.getElementById("confirmOverlay").style.display = "none";
+    if (decision === 1) {
+        // Người dùng chọn "Cho vào" -> Gửi lại với confirmed = 1
+        sendCapture(1, null, 1);
+    } else {
+        // Người dùng chọn "Hủy" -> Xóa blob tạm
+        statusText.innerText = "❌ Đã hủy check-in xe vãng lai.";
+        currentBlob = null;
+    }
+}
+
+// --- Logic Sửa Nhanh (Quick Edit) ---
+function openQuickEdit(currentPlate) {
+    document.getElementById("quickEditOverlay").style.display = "flex";
+    const input = document.getElementById("quickEditInput");
+    // Nếu biển số là 'Không rõ' thì để trống để nhập cho nhanh
+    input.value = (currentPlate && currentPlate !== 'Không rõ') ? currentPlate : "";
+    input.focus();
+}
+
+function closeQuickEdit() {
+    document.getElementById("quickEditOverlay").style.display = "none";
+}
+
+function submitQuickEdit() {
+    const newPlate = document.getElementById("quickEditInput").value.trim().toUpperCase();
+    if (!newPlate) return alert("Vui lòng nhập biển số!");
+    
+    if (!lastSessionId) return alert("Không tìm thấy phiên làm việc để sửa!");
 
     const formData = new FormData();
-    formData.append("start_time", start);
-    formData.append("end_time", end);
-    formData.append("secret_code", code);
-    formData.append("delete_data", deleteData);
+    formData.append("plate_number", newPlate);
+    formData.append("status", "PARKING"); // Mặc định là đang gửi vì đây là sửa sau check-in
+    formData.append("fee", "0");
 
-    const reportUrl = BACKEND_URL.replace("/upload", "/report");
-    console.log("Đang tải báo cáo từ:", reportUrl); // Kiểm tra URL trong Console
+    // Gọi API PUT /api/sessions/{id}
+    const apiUrl = BACKEND_URL.replace("/upload", `/api/sessions/${lastSessionId}`);
 
-    fetch(reportUrl, { method: "POST", body: formData })
-    .then(res => {
-        // Nếu server trả về lỗi (VD: chưa cài openpyxl), nó sẽ là JSON
-        const contentType = res.headers.get("content-type");
-        if (contentType && contentType.indexOf("application/json") !== -1) {
-            return res.json().then(data => {
-                if (!data.success) throw new Error(data.message);
-                return data; // Trường hợp lạ
-            });
+    fetch(apiUrl, { method: "PUT", body: formData })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            statusText.innerHTML = `✅ Đã cập nhật<br>🚗 Biển số: <b>${newPlate}</b>`;
+            closeQuickEdit();
+        } else {
+            alert("Lỗi: " + data.message);
         }
-        if (res.ok) return res.blob();
-        throw new Error("Lỗi kết nối: " + res.statusText);
     })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `BaoCao_${Date.now()}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        if (deleteData) alert("Đã tải báo cáo và xóa dữ liệu thành công!");
-        toggleReport();
-    })
-    .catch(err => alert("Lỗi: " + err.message));
+    .catch(err => alert("Lỗi kết nối!"));
 }
+
 </script>
 
 </body>
