@@ -94,7 +94,9 @@
         .whitelist-item {
             background: #444; padding: 10px; margin-bottom: 5px; border-radius: 4px; text-align: left; font-size: 14px;
             display: flex; justify-content: space-between; align-items: center; border: 1px solid #555;
+            cursor: pointer; transition: background 0.2s;
         }
+        .whitelist-item:hover { background: #555; }
         
         /* Report Form */
         .report-form { background: #2d2d2d; padding: 20px; border-radius: 8px; max-width: 400px; }
@@ -222,6 +224,17 @@
                 
                 <button onclick="addToWhitelist()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">➕ Thêm vào danh sách</button>
                 <div id="wlStatus" style="margin-top: 10px; font-weight: bold; min-height: 20px; text-align: center;"></div>
+
+                <!-- CSV Import Section -->
+                <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+                    <h4 style="color: #ccc; margin: 0 0 10px 0;">📂 Nhập từ file CSV</h4>
+                    <p style="color: #777; font-size: 12px; margin-bottom: 10px;">
+                        Định dạng: <b>Biển số, Tên chủ xe, Đường dẫn ảnh (tùy chọn)</b><br>
+                        Ví dụ: <i>30A-123.45, Nguyễn Văn A, whitelist_image/anh1.jpg</i>
+                    </p>
+                    <input type="file" id="csvFile" accept=".csv" style="color: #ccc; margin-bottom: 10px;">
+                    <button onclick="importCSV()" style="width:100%; background: #009688; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">⬆️ Upload CSV</button>
+                </div>
 
                 <h4 style="color: #ccc; margin: 20px 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">📋 Danh sách hiện tại:</h4>
                 <div id="whitelistContainer" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
@@ -390,6 +403,7 @@
             data.forEach(item => {
                 const div = document.createElement("div");
                 div.className = "whitelist-item";
+                div.onclick = () => showWhitelistDetail(item); // Thêm sự kiện click xem chi tiết
                 const formattedPlate = formatPlate(item.plate_number);
                 
                 // Hiển thị ảnh nhỏ nếu có
@@ -453,6 +467,34 @@
         .catch(err => {
             statusDiv.innerText = "❌ Lỗi kết nối!";
             statusDiv.style.color = "#F44336";
+            console.error(err);
+        });
+    }
+
+    function importCSV() {
+        const fileInput = document.getElementById("csvFile");
+        const statusDiv = document.getElementById("wlStatus");
+
+        if (fileInput.files.length === 0) {
+            return alert("Vui lòng chọn file CSV!");
+        }
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        statusDiv.innerText = "⏳ Đang xử lý file...";
+        statusDiv.style.color = "#FF9800";
+
+        fetch(`${BACKEND_URL}/api/whitelist/import`, { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            statusDiv.innerText = "";
+            fileInput.value = ""; // Reset input
+            loadWhitelist(); // Reload list
+        })
+        .catch(err => {
+            alert("Lỗi upload CSV!");
             console.error(err);
         });
     }
@@ -680,6 +722,31 @@
                     <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh ra</div>
                     <a href="${BACKEND_URL}/static/${s.checkout_img}" target="_blank">
                         <img src="${BACKEND_URL}/static/${s.checkout_img}">
+                    </a>
+                </div>`;
+        }
+
+        modal.style.display = "flex";
+    }
+
+    function showWhitelistDetail(item) {
+        const modal = document.getElementById("detailModal");
+        const formattedPlate = formatPlate(item.plate_number);
+        
+        document.getElementById("modalPlate").innerHTML = `${formattedPlate} <span class="tag-whitelist">Xe Đăng Ký (Whitelist)</span>`;
+        document.getElementById("modalOwner").innerText = item.owner_name || "---";
+        
+        const createdDate = item.created_at ? new Date(item.created_at).toLocaleString('vi-VN') : "---";
+        document.getElementById("modalTime").innerHTML = `Ngày đăng ký: ${createdDate}`;
+
+        const imgContainer = document.getElementById("modalImages");
+        imgContainer.innerHTML = "";
+        if (item.car_img) {
+            imgContainer.innerHTML += `
+                <div class="detail-img-box">
+                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh đăng ký</div>
+                    <a href="${BACKEND_URL}/static/${item.car_img}" target="_blank">
+                        <img src="${BACKEND_URL}/static/${item.car_img}">
                     </a>
                 </div>`;
         }

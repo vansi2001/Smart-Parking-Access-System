@@ -91,18 +91,41 @@
         }
         .input-field { width: 90%; padding: 10px; margin-bottom: 15px; border-radius: 5px; border: none; }
         
+        /* Hiệu ứng quét (Scanner Effect) */
+        #scanOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 50; display: none;
+        }
+        .scan-line {
+            position: absolute; width: 100%; height: 5px;
+            background: var(--scan-color, #00FF00);
+            box-shadow: 0 0 15px var(--scan-color, #00FF00), 0 0 30px var(--scan-color, #00FF00);
+            animation: scanMove 1.5s infinite linear;
+        }
+        @keyframes scanMove {
+            0% { top: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
     </style>
 </head>
 
 <body>
 
 <div class="top-bar">
+    <button class="top-btn" onclick="window.location.href='admin/index.html'" style="background: #607D8B;">⚙️ Quản trị</button>
     <button id="toggleQuickBtn" class="top-btn" onclick="toggleQuickList()">⚡ Ra/Vào Nhanh</button>
     <button id="toggleManualBtn" class="top-btn" onclick="toggleManual()">✎ Nhập tay</button>
 </div>
 
 <video id="video" autoplay playsinline></video>
 <canvas id="canvas" style="display:none;"></canvas>
+
+<!-- Scanner Overlay -->
+<div id="scanOverlay">
+    <div class="scan-line"></div>
+</div>
 
 <div id="status">Đang khởi động camera...</div>
 <button id="checkinBtn" class="actionBtn">Check-in</button>
@@ -230,6 +253,8 @@ async function sendCapture(status, manualPlate = null, confirmed = 0) {
         if (confirmed === 1 && currentPlate && !manualPlate) formData.append("plate_number", currentPlate);
 
         statusText.innerText = "Đang gửi ảnh...";
+        
+        startScanEffect(status); // Bắt đầu hiệu ứng quét
 
         fetch(BACKEND_URL, {
             method: "POST",
@@ -273,6 +298,9 @@ async function sendCapture(status, manualPlate = null, confirmed = 0) {
         .catch(err => {
             statusText.innerText = "❌ Không kết nối được BE";
             console.error(err);
+        })
+        .finally(() => {
+            stopScanEffect(); // Tắt hiệu ứng
         });
 
     };
@@ -452,6 +480,20 @@ function submitQuickEdit() {
         }
     })
     .catch(err => alert("Lỗi kết nối!"));
+}
+
+// --- Logic Hiệu ứng quét ---
+function startScanEffect(status) {
+    const overlay = document.getElementById("scanOverlay");
+    const line = document.querySelector(".scan-line");
+    // 1 = Check-in (Xanh lá), 0 = Check-out (Cam)
+    const color = status === 1 ? "#00FF00" : "#FF9800";
+    line.style.setProperty("--scan-color", color);
+    overlay.style.display = "block";
+}
+
+function stopScanEffect() {
+    document.getElementById("scanOverlay").style.display = "none";
 }
 
 </script>

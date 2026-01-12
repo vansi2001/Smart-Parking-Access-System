@@ -1,6 +1,8 @@
 import os
 import time
 import re
+import csv
+import codecs
 import cv2
 from datetime import datetime
 from io import BytesIO
@@ -389,3 +391,40 @@ async def add_whitelist(
             os.remove(dest_path)
         return {"success": False, "message": msg}
     return {"success": True, "message": msg, "data": item}
+
+@app.post("/api/whitelist/import")
+async def import_whitelist_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Nhập danh sách Whitelist từ file CSV"""
+    if not file.filename.endswith('.csv'):
+        return {"success": False, "message": "Vui lòng chọn file .csv"}
+
+    content = await file.read()
+    # Giải mã file CSV (xử lý BOM nếu có để tránh lỗi ký tự đầu)
+    decoded_content = content.decode("utf-8-sig").splitlines()
+    reader = csv.reader(decoded_content)
+
+    count_success = 0
+    count_fail = 0
+    
+    for row in reader:
+        # Bỏ qua dòng trống hoặc không đủ dữ liệu tối thiểu (Biển số, Tên)
+        if not row or len(row) < 2:
+            continue
+            
+        plate = row[0].strip()
+        owner = row[1].strip()
+        img_path = row[2].strip() if len(row) > 2 else None
+        
+        item, msg = crud.add_to_whitelist(db, plate, owner, img_path)
+        if item:
+            count_success += 1
+        else:
+            count_fail += 1
+
+    return {
+        "success": True, 
+        "message": f"Hoàn tất! Thành công: {count_success}, Bỏ qua (trùng/lỗi): {count_fail}"
+    }

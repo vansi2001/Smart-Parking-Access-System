@@ -1,39 +1,40 @@
 # Smart-Parking-Access-System
 
-Hệ thống quản lý bãi đỗ xe thông minh sử dụng công nghệ AI (Computer Vision) để nhận diện phương tiện và đọc biển số xe tự động. Dự án được tối ưu hóa để chạy trên máy tính cá nhân và hỗ trợ thao tác qua điện thoại di động.
+Hệ thống quản lý bãi đỗ xe thông minh sử dụng công nghệ AI (Computer Vision) để nhận diện phương tiện và đọc biển số xe tự động. Dự án bao gồm đầy đủ tính năng từ nhận diện, tính phí, quản lý danh sách ưu tiên (Whitelist) đến báo cáo thống kê.
 
 ## 🚀 Tính năng nổi bật
 
 1.  **Check-in / Check-out tự động:**
-    *   Tự động phát hiện xe (Ô tô, Xe máy, Xe buýt, Xe tải) bằng **YOLOv8**.
-    *   Tự động cắt ảnh xe và đọc biển số bằng **EasyOCR**.
-    *   Hỗ trợ xử lý ảnh nâng cao (CLAHE, Đảo màu) để đọc biển số bị lóa hoặc xe màu trắng.
-    *   Kiểm tra định dạng biển số Việt Nam (VD: 30A-123.45).
-2.  **Tối ưu hóa hiệu năng:**
-    *   **Xử lý trên RAM:** Ảnh chỉ được lưu xuống ổ cứng khi nhận diện thành công và hợp lệ (tránh rác hệ thống).
-    *   **GPU Acceleration:** Tự động sử dụng GPU (CUDA) nếu có để tăng tốc độ xử lý.
-3.  **Quản lý & Tính phí:**
-    *   Tính tiền gửi xe tự động dựa trên thời gian gửi.
-    *   Ngăn chặn Check-in trùng lặp.
-4.  **Báo cáo & Xuất dữ liệu:**
-    *   Xuất báo cáo ra file Excel (`.xlsx`) theo khoảng thời gian.
-    *   Hỗ trợ xóa dữ liệu cũ để giải phóng dung lượng.
-5.  **Hỗ trợ Mobile (HTTPS):**
-    *   Tích hợp sẵn Server HTTPS để trình duyệt điện thoại có thể mở Camera quét mã.
+    *   Tự động phát hiện xe và đọc biển số bằng **YOLOv8** & **EasyOCR**.
+    *   Hỗ trợ xử lý ảnh nâng cao (CLAHE, Đảo màu) để đọc biển số khó.
+    *   **Hiệu ứng quét Laser** trực quan trên giao diện.
+    *   **Sửa nhanh:** Cho phép bảo vệ sửa lại biển số ngay lập tức nếu AI nhận diện sai.
+    *   **Xác nhận xe vãng lai:** Cảnh báo khi xe lạ vào bãi, yêu cầu xác nhận trước khi mở cổng.
+
+2.  **Quản lý Whitelist (Xe ưu tiên):**
+    *   Quản lý danh sách xe cư dân/nhân viên.
+    *   **Miễn phí gửi xe** tự động cho xe trong Whitelist.
+    *   **Ra/Vào Nhanh:** Danh sách chọn nhanh trên giao diện để cho xe quen vào không cần quét camera.
+    *   Nhập liệu hàng loạt từ file **CSV**.
+
+3.  **Trang Quản trị (Admin Dashboard):**
+    *   Giao diện quản trị chuyên nghiệp (Login bảo mật).
+    *   **Tra cứu thông minh:** Tìm kiếm xe theo biển số (gần đúng), xem lịch sử ra vào.
+    *   **Quản lý dữ liệu:** Sửa hoặc Xóa các lượt gửi xe sai lệch.
+    *   **Báo cáo:** Xuất file Excel (`.xlsx`) thống kê doanh thu và lượt xe.
+
+4.  **Tối ưu hóa & Bảo mật:**
+    *   **Xử lý trên RAM:** Không lưu ảnh rác nếu nhận diện thất bại.
+    *   **HTTPS:** Hỗ trợ chạy trên trình duyệt điện thoại di động.
 
 ---
 
 ## 💻 Yêu cầu hệ thống (System Requirements)
 
-Để hệ thống hoạt động ổn định với các model AI, máy tính cần đáp ứng cấu hình tối thiểu sau:
-
 *   **Hệ điều hành:** Windows 10/11, macOS hoặc Linux.
-*   **Python:** Phiên bản **3.9** đến **3.11** (Khuyên dùng 3.10).
-*   **RAM:** Tối thiểu **4GB** (Khuyên dùng 8GB trở lên để load model YOLO và EasyOCR mượt mà).
-*   **CPU:** Core i5 thế hệ 4 trở lên hoặc tương đương.
-*   **GPU (Tùy chọn):** NVIDIA GTX/RTX với CUDA để tăng tốc độ nhận diện (nếu không có sẽ chạy bằng CPU chậm hơn chút).
-*   **Dung lượng ổ cứng:** Trống ít nhất 2GB (để lưu thư viện và ảnh chụp xe).
-*   **Camera:** Webcam USB hoặc Camera laptop (để test tính năng quét).
+*   **Python:** 3.9 - 3.11.
+*   **RAM:** Tối thiểu 4GB (Khuyên dùng 8GB).
+*   **Camera:** Webcam hoặc Camera điện thoại (qua IP Webcam).
 
 ---
 
@@ -41,32 +42,21 @@ Hệ thống quản lý bãi đỗ xe thông minh sử dụng công nghệ AI (C
 
 *   **Backend:** Python, FastAPI, Uvicorn, SQLAlchemy.
 *   **AI/CV:** Ultralytics YOLOv8, EasyOCR, OpenCV, PyTorch.
+*   **Frontend:** HTML5, CSS3, JavaScript (Vanilla).
 *   **Database:** SQLite.
-*   **Frontend:** HTML/JS thuần (phục vụ qua Python HTTP Server).
 
 ---
 
-## ⚙️ Hướng dẫn Cài đặt & Chạy (Từng bước)
+## ⚙️ Hướng dẫn Cài đặt & Chạy
 
-Làm theo các bước sau để thiết lập hệ thống từ đầu:
-
-### Bước 1: Tạo môi trường ảo (Virtual Environment)
-Mở Terminal (CMD/PowerShell) tại thư mục gốc của dự án và chạy:
-
+### Bước 1: Cài đặt môi trường
 ```bash
-# 1. Tạo môi trường ảo tên là 'venv'
 python -m venv venv
-
-# 2. Kích hoạt môi trường
-# Trên Windows:
+# Windows:
 .\venv\Scripts\activate
-# Trên Mac/Linux:
+# Linux/Mac:
 source venv/bin/activate
-```
 
-### Bước 2: Cài đặt thư viện
-Sau khi kích hoạt venv, chạy lệnh sau để tải các thư viện cần thiết:
-```bash
 pip install -r requirements.txt
 ```
 *(Lưu ý: Nếu máy có Card rời NVIDIA, hãy cài PyTorch bản hỗ trợ CUDA để chạy nhanh hơn)*
