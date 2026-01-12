@@ -74,13 +74,13 @@ async def upload_image(
     
     if plate_number:
         plate_text = plate_number.strip().upper()
-        crop_msg = "Biển số nhập tay từ Frontend"
+        crop_msg = "手動輸入車牌"
     else:
         # Tiến hành cắt ảnh xe (nếu có)
         cropped_img = yolo_utils.detect_and_crop_vehicle(content)
-        crop_msg = "Không tìm thấy xe"
+        crop_msg = "找不到車輛"
         if cropped_img is not None:
-            crop_msg = "Đã cắt ảnh xe"
+            crop_msg = "已裁切車輛影像"
             # Tiến hành OCR với ảnh đã cắt sẵn trong RAM (cropped_img)
             plate_text = yolo_utils.read_plate_text(cropped_img)
 
@@ -93,7 +93,7 @@ async def upload_image(
             "cropped_image": None,
             "plate_number": None,
             "fee": 0,
-            "message": "⚠️ Không đọc được biển số! Vui lòng chụp lại."
+            "message": "⚠️ 無法讀取車牌！請重新拍攝。"
         }
 
     # 2. Kiểm tra regex định dạng: Chấp nhận cả 5 số (có chấm) và 4 số
@@ -105,7 +105,7 @@ async def upload_image(
             "cropped_image": None,
             "plate_number": plate_text,
             "fee": 0,
-            "message": f"⚠️ Biển số sai định dạng: {plate_text}. Yêu cầu đúng mẫu (VD: 30A-123.45 hoặc 30A-1234)"
+            "message": f"⚠️ 車牌格式錯誤: {plate_text}。請使用正確格式 (例如: 30A-123.45 或 30A-1234)"
         }
 
     # --- LOGIC MỚI: KIỂM TRA XE VÃNG LAI (CHỈ ÁP DỤNG KHI CHECK-IN) ---
@@ -119,7 +119,7 @@ async def upload_image(
                 "success": False,
                 "need_confirmation": True, # Cờ báo hiệu cho FE
                 "plate_number": plate_text,
-                "message": f"⚠️ Xe vãng lai: {plate_text}. Cần xác nhận để cho vào."
+                "message": f"⚠️ 訪客車輛: {plate_text}。需確認後方可進入。"
             }
 
     # SAU KHI xử lý ảnh xong, mới tiến hành lưu vào DB
@@ -170,33 +170,33 @@ async def export_report(
     """Xuất báo cáo Excel và tùy chọn xóa dữ liệu"""
     # 1. Kiểm tra mã bảo mật
     if secret_code != "123":
-        return {"success": False, "message": "Mã xác nhận không đúng!"}
+        return {"success": False, "message": "驗證碼錯誤！"}
 
     try:
         # Convert string ISO format từ frontend thành datetime
         dt_start = datetime.fromisoformat(start_time)
         dt_end = datetime.fromisoformat(end_time)
     except ValueError:
-        return {"success": False, "message": "Định dạng thời gian không hợp lệ"}
+        return {"success": False, "message": "時間格式無效"}
 
     # 2. Lấy dữ liệu
     sessions = crud.get_sessions_in_range(db, dt_start, dt_end)
     
     if not sessions:
-        return {"success": False, "message": "Không có dữ liệu trong khoảng thời gian này"}
+        return {"success": False, "message": "此期間無資料"}
 
     # 3. Tạo file Excel bằng openpyxl
     try:
         import openpyxl
     except ImportError:
-        return {"success": False, "message": "Lỗi Server: Chưa cài thư viện 'openpyxl'. Vui lòng chạy: pip install openpyxl"}
+        return {"success": False, "message": "伺服器錯誤: 未安裝 'openpyxl' 函式庫。請執行: pip install openpyxl"}
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Báo cáo gửi xe"
+    ws.title = "停車報表"
     
     # Header
-    headers = ["ID", "Biển số", "Giờ vào", "Giờ ra", "Trạng thái", "Phí (VNĐ)", "Ảnh vào", "Ảnh ra"]
+    headers = ["ID", "車牌", "入場時間", "出場時間", "狀態", "費用 (VNĐ)", "入場照片", "出場照片"]
     ws.append(headers)
     
     for s in sessions:
@@ -243,8 +243,8 @@ def delete_session_endpoint(session_id: int, db: Session = Depends(get_db)):
     """Xóa một lượt gửi xe"""
     success = crud.delete_session(db, session_id, UPLOAD_DIR, CROP_DIR)
     if success:
-        return {"success": True, "message": "Đã xóa bản ghi thành công"}
-    return {"success": False, "message": "Không tìm thấy bản ghi"}
+        return {"success": True, "message": "已成功刪除紀錄"}
+    return {"success": False, "message": "找不到紀錄"}
 
 @app.put("/api/sessions/{session_id}")
 async def update_session_endpoint(
@@ -257,8 +257,8 @@ async def update_session_endpoint(
     """Cập nhật thông tin lượt gửi xe"""
     updated = crud.update_session(db, session_id, plate_number, status, fee)
     if updated:
-        return {"success": True, "message": "Cập nhật thành công"}
-    return {"success": False, "message": "Lỗi cập nhật hoặc không tìm thấy ID"}
+        return {"success": True, "message": "更新成功"}
+    return {"success": False, "message": "更新失敗或找不到 ID"}
 
 @app.get("/api/search")
 def search_vehicle(query: str, db: Session = Depends(get_db)):
@@ -278,7 +278,7 @@ def search_vehicle(query: str, db: Session = Depends(get_db)):
         wl_item = crud.check_whitelist(db, s.plate_number)
         
         is_whitelist = True if wl_item else False
-        owner_info = wl_item.owner_name if wl_item else "Khách vãng lai"
+        owner_info = wl_item.owner_name if wl_item else "訪客"
         
         results.append({
             "id": s.id,
@@ -326,8 +326,8 @@ async def login(
     # Trong thực tế nên lưu user trong DB và mã hóa mật khẩu
     # Ở đây demo hardcode: admin / admin123
     if username == "admin" and password == "admin123":
-        return {"success": True, "token": "fake_token_secure_123", "message": "Đăng nhập thành công!"}
-    return {"success": False, "message": "Sai tên đăng nhập hoặc mật khẩu!"}
+        return {"success": True, "token": "fake_token_secure_123", "message": "登入成功！"}
+    return {"success": False, "message": "使用者名稱或密碼錯誤！"}
 
 @app.post("/api/check-access")
 async def check_access_manual(
@@ -346,14 +346,14 @@ async def check_access_manual(
         return {
             "allowed": True,
             "color": "green",
-            "message": f"✅ ĐƯỢC PHÉP VÀO\nChủ xe: {item.owner_name}",
+            "message": f"✅ 允許進入\n車主: {item.owner_name}",
             "plate_number": item.plate_number
         }
     else:
         return {
             "allowed": False,
             "color": "red",
-            "message": "⛔ KHÔNG CÓ TRONG DANH SÁCH\nVui lòng kiểm tra lại hoặc thu phí vãng lai.",
+            "message": "⛔ 不在清單中\n請重新檢查或收取訪客費用。",
             "plate_number": plate_number
         }
 
@@ -399,7 +399,7 @@ async def import_whitelist_csv(
 ):
     """Nhập danh sách Whitelist từ file CSV"""
     if not file.filename.endswith('.csv'):
-        return {"success": False, "message": "Vui lòng chọn file .csv"}
+        return {"success": False, "message": "請選擇 .csv 檔案"}
 
     content = await file.read()
     # Giải mã file CSV (xử lý BOM nếu có để tránh lỗi ký tự đầu)
@@ -426,5 +426,5 @@ async def import_whitelist_csv(
 
     return {
         "success": True, 
-        "message": f"Hoàn tất! Thành công: {count_success}, Bỏ qua (trùng/lỗi): {count_fail}"
+        "message": f"完成！成功: {count_success}, 略過 (重複/錯誤): {count_fail}"
     }

@@ -24,7 +24,7 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
                 database.ParkingSession.status == "PARKING"
             ).first()
             if existing:
-                return None, f"Xe {plate_number} đang trong bãi! Không thể Check-in lại."
+                return None, f"車輛 {plate_number} 已在場內！無法重複入場。"
 
         # Xe vào: Tạo session mới
         session = database.ParkingSession(
@@ -36,7 +36,7 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
         db.add(session)
         db.commit()
         db.refresh(session)
-        return session, "Check-in thành công"
+        return session, "入場成功"
     else:
         # Xe ra: Tìm session đang mở (PARKING) có cùng biển số
         session = None
@@ -58,10 +58,10 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
             normalized_db_plate = func.replace(func.replace(database.Whitelist.plate_number, '-', ''), '.', '')
             is_whitelisted = db.query(database.Whitelist).filter(normalized_db_plate == clean_plate).first()
 
-            msg = "Check-out thành công"
+            msg = "出場成功"
             if is_whitelisted:
                 session.fee = 0.0
-                msg = "Check-out thành công (Xe ưu tiên - Miễn phí)"
+                msg = "出場成功 (優先車輛 - 免費)"
             else:
                 # Tính phí (fee) cho xe vãng lai
                 duration = session.checkout_time - session.checkin_time
@@ -79,7 +79,7 @@ def create_session_entry(db: Session, filename: str, status: int, plate_number: 
             return session, msg
         else:
             # Không tìm thấy xe trong bãi -> Từ chối Check-out để tránh lỗi
-            msg = f"Xe {plate_number} chưa Check-in hoặc đã ra rồi!" if plate_number else "Không đọc được biển số để Check-out!"
+            msg = f"車輛 {plate_number} 尚未入場或已出場！" if plate_number else "無法讀取車牌以進行出場！"
             return None, msg
 
 def get_recent_sessions(db: Session, limit: int = 100):
@@ -180,13 +180,13 @@ def add_to_whitelist(db: Session, plate_number: str, owner_name: str, car_img: s
     # Kiểm tra tồn tại
     existing = db.query(database.Whitelist).filter(database.Whitelist.plate_number == clean_plate).first()
     if existing:
-        return None, "Biển số này đã có trong danh sách!"
+        return None, "此車牌已在清單中！"
     
     item = database.Whitelist(plate_number=clean_plate, owner_name=owner_name, car_img=car_img)
     db.add(item)
     db.commit()
     db.refresh(item)
-    return item, "Đã thêm vào danh sách thành công."
+    return item, "已成功加入清單。"
 
 def check_whitelist(db: Session, plate_number: str):
     """Kiểm tra nhanh xem biển số có được phép không"""

@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Admin Dashboard - Smart Parking</title>
+    <title>管理儀表板 - 智慧停車</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -121,36 +121,75 @@
         .detail-img-box img { max-width: 100%; height: 150px; object-fit: cover; border-radius: 5px; border: 1px solid #555; }
         .tag-whitelist { background: #9C27B0; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
         .tag-guest { background: #607D8B; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 10px; }
+
+        /* --- RESPONSIVE STYLES --- */
+        .mobile-menu-btn {
+            display: none; position: fixed; top: 15px; left: 15px; z-index: 1002;
+            background: #333; color: white; border: 1px solid #555; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 20px;
+        }
+        .sidebar-backdrop {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn { display: block; }
+            
+            /* Sidebar ẩn sang trái trên mobile */
+            .sidebar {
+                position: fixed; top: 0; left: -260px; height: 100%; z-index: 1001;
+                transition: left 0.3s ease; box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+            }
+            .sidebar.active { left: 0; }
+            
+            /* Hiển thị backdrop khi menu mở */
+            .sidebar-backdrop.active { display: block; }
+
+            /* Nội dung chính full màn hình */
+            .main-content { width: 100%; padding-top: 60px; } /* Chừa chỗ cho nút menu */
+            
+            /* Table responsive */
+            table { display: block; overflow-x: auto; white-space: nowrap; }
+            
+            /* Login box responsive */
+            .login-box { width: 90%; margin-top: 50px; }
+            
+            .search-input { width: 100%; } /* Search box full width */
+        }
     </style>
 </head>
 <body>
 
     <!-- LOGIN SECTION -->
     <div id="loginSection" class="login-box">
-        <h2>🔐 Admin Login</h2>
+        <h2>🔐 管理員登入</h2>
         <div class="input-group">
-            <label>Tên đăng nhập</label>
+            <label>使用者名稱</label>
             <input type="text" id="username" placeholder="admin">
         </div>
         <div class="input-group">
-            <label>Mật khẩu</label>
+            <label>密碼</label>
             <input type="password" id="password" placeholder="******">
         </div>
-        <button class="btn-login" onclick="handleLogin()">Đăng Nhập</button>
+        <button class="btn-login" onclick="handleLogin()">登入</button>
         <div id="loginError" class="error-msg"></div>
     </div>
 
     <!-- DASHBOARD SECTION -->
     <div id="dashboard">
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-header">🚗 Smart Parking</div>
-            <div class="menu-item active" onclick="switchTab('overview')">📊 Tổng quan</div>
-            <div class="menu-item" onclick="switchTab('search')">🔍 Tra cứu xe</div>
-            <div class="menu-item" onclick="switchTab('whitelist')">🛡️ Quản lý Whitelist</div>
-            <div class="menu-item" onclick="switchTab('report')">📥 Xuất báo cáo</div>
-            <div class="menu-item" onclick="window.location.href='../index.html'" style="margin-top: auto; border-top: 1px solid #333;">⬅️ Về trang quét xe</div>
-            <div class="menu-item" onclick="handleLogout()" style="color: #F44336;">🚪 Đăng xuất</div>
+            <div class="sidebar-header">🚗 智慧停車</div>
+            <div class="menu-item active" onclick="switchTab('overview')">📊 總覽</div>
+            <div class="menu-item" onclick="switchTab('search')">🔍 車輛查詢</div>
+            <div class="menu-item" onclick="switchTab('whitelist')">🛡️ 白名單管理</div>
+            <div class="menu-item" onclick="switchTab('report')">📥 匯出報表</div>
+            <div class="menu-item" onclick="window.location.href='../index.html'" style="margin-top: auto; border-top: 1px solid #333;">⬅️ 返回掃描頁面</div>
+            <div class="menu-item" onclick="handleLogout()" style="color: #F44336;">🚪 登出</div>
         </div>
         
         <!-- Main Content -->
@@ -159,21 +198,21 @@
             <!-- TAB 1: OVERVIEW (TABLE) -->
             <div id="tab-overview" class="section active">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>Lịch sử xe ra vào (100 lượt gần nhất)</h2>
-                    <button onclick="loadSessions()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; height: 40px;">🔄 Làm mới</button>
+                    <h2>進出紀錄 (最近100筆)</h2>
+                    <button onclick="loadSessions()" style="padding: 10px 20px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer; height: 40px;">🔄 重新整理</button>
                 </div>
 
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Biển số</th>
-                            <th>Giờ vào</th>
-                            <th>Giờ ra</th>
-                            <th>Trạng thái</th>
-                            <th>Phí</th>
-                            <th>Ảnh</th>
-                            <th>Hành động</th>
+                            <th>編號</th>
+                            <th>車牌</th>
+                            <th>入場時間</th>
+                            <th>出場時間</th>
+                            <th>狀態</th>
+                            <th>費用</th>
+                            <th>照片</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="sessionTableBody">
@@ -184,79 +223,79 @@
 
             <!-- TAB 4: SEARCH (NEW) -->
             <div id="tab-search" class="section">
-                <h2>Tra cứu thông tin xe</h2>
+                <h2>查詢車輛資訊</h2>
                 <div class="search-box">
-                    <input type="text" id="searchInput" class="search-input" placeholder="🔍 Nhập biển số (VD: 20 A, 123.94)..." onkeypress="if(event.key==='Enter') searchVehicle()">
-                    <button onclick="searchVehicle()" style="padding: 10px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍 Tìm kiếm</button>
+                    <input type="text" id="searchInput" class="search-input" placeholder="🔍 輸入車牌 (例如: 20 A, 123.94)..." onkeypress="if(event.key==='Enter') searchVehicle()">
+                    <button onclick="searchVehicle()" style="padding: 10px; background: #2196F3; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍 搜尋</button>
                 </div>
                 
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Biển số</th>
-                            <th>Giờ vào</th>
-                            <th>Giờ ra</th>
-                            <th>Trạng thái</th>
-                            <th>Phí</th>
-                            <th>Ảnh</th>
+                            <th>編號</th>
+                            <th>車牌</th>
+                            <th>入場時間</th>
+                            <th>出場時間</th>
+                            <th>狀態</th>
+                            <th>費用</th>
+                            <th>照片</th>
                         </tr>
                     </thead>
                     <tbody id="searchTableBody">
-                        <tr><td colspan="7" style="text-align:center; color:#777;">Nhập biển số để tìm kiếm...</td></tr>
+                        <tr><td colspan="7" style="text-align:center; color:#777;">輸入車牌以搜尋...</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- TAB 2: WHITELIST -->
             <div id="tab-whitelist" class="section">
-                <h2>Quản lý Whitelist (Danh sách xe ưu tiên)</h2>
+                <h2>白名單管理 (優先車輛清單)</h2>
                 <div style="background: #2d2d2d; padding: 20px; border-radius: 10px; max-width: 600px;">
                 
-                <label style="color:#ccc; font-size:12px;">Biển số:</label>
-                <input type="text" id="wlPlate" placeholder="VD: 30A-123.45" style="width:100%; padding:8px; margin-bottom:10px; background:#333; border:1px solid #555; color:white; text-transform:uppercase;">
+                <label style="color:#ccc; font-size:12px;">車牌:</label>
+                <input type="text" id="wlPlate" placeholder="例如: 30A-123.45" style="width:100%; padding:8px; margin-bottom:10px; background:#333; border:1px solid #555; color:white; text-transform:uppercase;">
                 
-                <label style="color:#ccc; font-size:12px;">Tên chủ xe / Căn hộ:</label>
-                <input type="text" id="wlOwner" placeholder="Nguyễn Văn A" style="width:100%; padding:8px; margin-bottom:10px; background:#333; border:1px solid #555; color:white;">
+                <label style="color:#ccc; font-size:12px;">車主姓名 / 單位:</label>
+                <input type="text" id="wlOwner" placeholder="王小明" style="width:100%; padding:8px; margin-bottom:10px; background:#333; border:1px solid #555; color:white;">
                 
-                <label style="color:#ccc; font-size:12px;">Ảnh xe (Tùy chọn):</label>
+                <label style="color:#ccc; font-size:12px;">車輛照片 (選填):</label>
                 <input type="file" id="wlImage" accept="image/*" style="width:100%; margin-bottom:15px; color:#ccc;">
                 
-                <button onclick="addToWhitelist()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">➕ Thêm vào danh sách</button>
+                <button onclick="addToWhitelist()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">➕ 加入清單</button>
                 <div id="wlStatus" style="margin-top: 10px; font-weight: bold; min-height: 20px; text-align: center;"></div>
 
                 <!-- CSV Import Section -->
                 <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
-                    <h4 style="color: #ccc; margin: 0 0 10px 0;">📂 Nhập từ file CSV</h4>
+                    <h4 style="color: #ccc; margin: 0 0 10px 0;">📂 從 CSV 檔案匯入</h4>
                     <p style="color: #777; font-size: 12px; margin-bottom: 10px;">
-                        Định dạng: <b>Biển số, Tên chủ xe, Đường dẫn ảnh (tùy chọn)</b><br>
-                        Ví dụ: <i>30A-123.45, Nguyễn Văn A, whitelist_image/anh1.jpg</i>
+                        格式: <b>車牌, 車主姓名, 照片路徑 (選填)</b><br>
+                        例如: <i>30A-123.45, 王小明, whitelist_image/anh1.jpg</i>
                     </p>
                     <input type="file" id="csvFile" accept=".csv" style="color: #ccc; margin-bottom: 10px;">
-                    <button onclick="importCSV()" style="width:100%; background: #009688; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">⬆️ Upload CSV</button>
+                    <button onclick="importCSV()" style="width:100%; background: #009688; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">⬆️ 上傳 CSV</button>
                 </div>
 
-                <h4 style="color: #ccc; margin: 20px 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">📋 Danh sách hiện tại:</h4>
+                <h4 style="color: #ccc; margin: 20px 0 10px 0; border-bottom: 1px solid #444; padding-bottom: 5px;">📋 目前清單:</h4>
                 <div id="whitelistContainer" style="max-height: 300px; overflow-y: auto; padding-right: 5px;">
-                    <div style="color: #777; text-align: center;">Đang tải...</div>
+                    <div style="color: #777; text-align: center;">正在載入...</div>
                 </div>
                 </div>
             </div>
             
             <!-- TAB 3: REPORT -->
             <div id="tab-report" class="section">
-                <h2>Xuất báo cáo Excel</h2>
+                <h2>匯出 Excel 報表</h2>
                 <div class="report-form">
-                    <label style="display:block; margin-bottom:5px; color:#ccc">Từ ngày:</label>
+                    <label style="display:block; margin-bottom:5px; color:#ccc">開始日期:</label>
                     <input type="datetime-local" id="startDate" class="input-group input" style="width:100%; margin-bottom:15px;">
                     
-                    <label style="display:block; margin-bottom:5px; color:#ccc">Đến ngày:</label>
+                    <label style="display:block; margin-bottom:5px; color:#ccc">結束日期:</label>
                     <input type="datetime-local" id="endDate" class="input-group input" style="width:100%; margin-bottom:15px;">
                     
-                    <input type="password" id="secretCode" class="input-group input" placeholder="Mã xác nhận (123)" style="width:100%; margin-bottom:15px;">
+                    <input type="password" id="secretCode" class="input-group input" placeholder="驗證碼 (123)" style="width:100%; margin-bottom:15px;">
                     
-                    <button onclick="downloadReport(false)" style="width:100%; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer;">📥 Tải Báo Cáo</button>
-                    <button onclick="downloadReport(true)" style="width:100%; background: #F44336; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px;">🗑️ Tải & Xóa Dữ Liệu</button>
+                    <button onclick="downloadReport(false)" style="width:100%; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer;">📥 下載報表</button>
+                    <button onclick="downloadReport(true)" style="width:100%; background: #F44336; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px;">🗑️ 下載並刪除資料</button>
                 </div>
             </div>
 
@@ -267,22 +306,22 @@
     <div id="editModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <span class="close-modal" onclick="closeEditModal()">&times;</span>
-            <h2 style="margin-top: 0; color: #2196F3;">✏️ Sửa Thông Tin</h2>
+            <h2 style="margin-top: 0; color: #2196F3;">✏️ 修改資訊</h2>
             <input type="hidden" id="editId">
             
-            <label style="color:#ccc; font-size:12px;">Biển số:</label>
+            <label style="color:#ccc; font-size:12px;">車牌:</label>
             <input type="text" id="editPlate" class="input-group input" style="width:100%; margin-bottom:10px;">
             
-            <label style="color:#ccc; font-size:12px;">Trạng thái:</label>
+            <label style="color:#ccc; font-size:12px;">狀態:</label>
             <select id="editStatus" class="input-group input" style="width:100%; margin-bottom:10px; padding: 10px;">
-                <option value="PARKING">PARKING (Đang gửi)</option>
-                <option value="CHECKOUT">CHECKOUT (Đã ra)</option>
+                <option value="PARKING">PARKING (停放中)</option>
+                <option value="CHECKOUT">CHECKOUT (已出場)</option>
             </select>
             
-            <label style="color:#ccc; font-size:12px;">Phí (VNĐ):</label>
+            <label style="color:#ccc; font-size:12px;">費用 (VNĐ):</label>
             <input type="number" id="editFee" class="input-group input" style="width:100%; margin-bottom:20px;">
             
-            <button onclick="saveSession()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">Lưu Thay Đổi</button>
+            <button onclick="saveSession()" style="width:100%; background: #2196F3; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">儲存變更</button>
         </div>
     </div>
 
@@ -290,18 +329,18 @@
     <div id="detailModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal()">&times;</span>
-            <h2 style="margin-top: 0; color: #4CAF50;">Thông Tin Chi Tiết Xe</h2>
+            <h2 style="margin-top: 0; color: #4CAF50;">車輛詳細資訊</h2>
             
             <div class="detail-row">
-                <div class="detail-label">Biển số & Loại xe:</div>
+                <div class="detail-label">車牌 & 車輛類型:</div>
                 <div class="detail-val" id="modalPlate">---</div>
             </div>
             <div class="detail-row">
-                <div class="detail-label">Chủ sở hữu / Ghi chú:</div>
+                <div class="detail-label">車主 / 備註:</div>
                 <div class="detail-val" id="modalOwner">---</div>
             </div>
             <div class="detail-row">
-                <div class="detail-label">Thời gian & Trạng thái:</div>
+                <div class="detail-label">時間 & 狀態:</div>
                 <div class="detail-val" id="modalTime">---</div>
             </div>
             
@@ -346,7 +385,7 @@
         const errDiv = document.getElementById("loginError");
 
         if (!user || !pass) {
-            errDiv.innerText = "Vui lòng nhập đầy đủ thông tin!";
+            errDiv.innerText = "請輸入完整資訊！";
             return;
         }
 
@@ -370,7 +409,7 @@
                 errDiv.innerText = data.message;
             }
         })
-        .catch(err => errDiv.innerText = "Lỗi kết nối Server!");
+        .catch(err => errDiv.innerText = "伺服器連線錯誤！");
     }
 
     // 3. Xử lý Đăng xuất
@@ -397,7 +436,7 @@
         .then(data => {
             container.innerHTML = "";
             if (data.length === 0) {
-                container.innerHTML = "<div style='color:#777; text-align:center'>Danh sách trống</div>";
+                container.innerHTML = "<div style='color:#777; text-align:center'>清單為空</div>";
                 return;
             }
             data.forEach(item => {
@@ -431,14 +470,14 @@
         const fileInput = document.getElementById("wlImage");
         const statusDiv = document.getElementById("wlStatus");
         
-        if (!plate || !owner) return alert("Vui lòng nhập đầy đủ Biển số và Tên chủ xe!");
+        if (!plate || !owner) return alert("請輸入完整資訊！");
 
         const regex = /^\d{2}[A-Z]-(\d{3}\.\d{2}|\d{4})$/;
         if (!regex.test(plate)) {
-            return alert("Biển số sai định dạng!\nVui lòng nhập đúng mẫu: 30A-999.56 hoặc 30A-1234");
+            return alert("車牌格式錯誤！請使用正確格式: 30A-999.56 或 30A-1234");
         }
 
-        statusDiv.innerText = "⏳ Đang gửi dữ liệu...";
+        statusDiv.innerText = "⏳ 正在發送資料...";
         statusDiv.style.color = "#FF9800";
 
         const formData = new FormData();
@@ -465,7 +504,7 @@
             }
         })
         .catch(err => {
-            statusDiv.innerText = "❌ Lỗi kết nối!";
+            statusDiv.innerText = "❌ 連線錯誤！";
             statusDiv.style.color = "#F44336";
             console.error(err);
         });
@@ -476,13 +515,13 @@
         const statusDiv = document.getElementById("wlStatus");
 
         if (fileInput.files.length === 0) {
-            return alert("Vui lòng chọn file CSV!");
+            return alert("請選擇 .csv 檔案！");
         }
 
         const formData = new FormData();
         formData.append("file", fileInput.files[0]);
 
-        statusDiv.innerText = "⏳ Đang xử lý file...";
+        statusDiv.innerText = "⏳ 正在處理檔案...";
         statusDiv.style.color = "#FF9800";
 
         fetch(`${BACKEND_URL}/api/whitelist/import`, { method: "POST", body: formData })
@@ -494,7 +533,7 @@
             loadWhitelist(); // Reload list
         })
         .catch(err => {
-            alert("Lỗi upload CSV!");
+            alert("CSV 上傳錯誤！");
             console.error(err);
         });
     }
@@ -509,18 +548,23 @@
         // Update menu active state
         document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
         event.currentTarget.classList.add('active');
+
+        // Trên mobile: Tự động đóng menu sau khi chọn
+        if (window.innerWidth <= 768) {
+            toggleSidebar();
+        }
     }
 
     function loadSessions() {
         const tbody = document.getElementById("sessionTableBody");
-        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Đang tải dữ liệu...</td></tr>";
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>正在載入...</td></tr>";
 
         fetch(`${BACKEND_URL}/api/sessions?limit=100`)
         .then(res => res.json())
         .then(data => {
             tbody.innerHTML = "";
             if (data.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Chưa có dữ liệu</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>尚無資料</td></tr>";
                 return;
             }
             
@@ -531,8 +575,8 @@
                 
                 // Format Status
                 let statusHtml = s.status === "PARKING" 
-                    ? `<span class="status-badge status-parking">Đang gửi</span>` 
-                    : `<span class="status-badge status-checkout">Đã ra</span>`;
+                    ? `<span class="status-badge status-parking">停放中</span>` 
+                    : `<span class="status-badge status-checkout">已出場</span>`;
                 
                 // Format Time
                 const inTime = s.checkin_time ? new Date(s.checkin_time).toLocaleString('vi-VN') : "";
@@ -574,7 +618,7 @@
     // --- LOGIC SỬA / XÓA SESSION ---
     function deleteSession(event, id) {
         event.stopPropagation(); // Ngăn không cho mở modal chi tiết
-        if (!confirm("Bạn có chắc chắn muốn xóa bản ghi này không? Hành động này không thể hoàn tác.")) return;
+        if (!confirm("您確定要刪除此紀錄嗎？此操作無法復原。")) return;
 
         fetch(`${BACKEND_URL}/api/sessions/${id}`, { method: "DELETE" })
         .then(res => res.json())
@@ -582,7 +626,7 @@
             alert(data.message);
             if (data.success) loadSessions();
         })
-        .catch(err => alert("Lỗi kết nối!"));
+        .catch(err => alert("連線錯誤！"));
     }
 
     function openEditModal(event, id, plate, status, fee) {
@@ -618,26 +662,26 @@
                 loadSessions();
             }
         })
-        .catch(err => alert("Lỗi kết nối!"));
+        .catch(err => alert("連線錯誤！"));
     }
 
     // --- LOGIC TÌM KIẾM & MODAL ---
     function searchVehicle() {
         const query = document.getElementById("searchInput").value.trim();
-        if (!query) return alert("Vui lòng nhập từ khóa!");
+        if (!query) return alert("請輸入關鍵字！");
 
         // Chuyển sang tab search nếu đang ở tab khác (đề phòng)
         if (!document.getElementById('tab-search').classList.contains('active')) switchTab('search');
 
         const tbody = document.getElementById("searchTableBody");
-        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>⏳ Đang tìm kiếm...</td></tr>";
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>⏳ 正在搜尋...</td></tr>";
 
         fetch(`${BACKEND_URL}/api/search?query=${encodeURIComponent(query)}`)
         .then(res => res.json())
         .then(data => {
             tbody.innerHTML = "";
             if (data.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>Không tìm thấy xe nào khớp!</td></tr>";
+                tbody.innerHTML = "<tr><td colspan='7' style='text-align:center'>找不到相符車輛！</td></tr>";
                 return;
             }
             data.forEach(s => {
@@ -646,9 +690,9 @@
                 const formattedPlate = formatPlate(s.plate_number);
                 
                 let statusHtml = "";
-                if (s.status === "PARKING") statusHtml = `<span class="status-badge status-parking">Đang gửi</span>`;
-                else if (s.status === "CHECKOUT") statusHtml = `<span class="status-badge status-checkout">Đã ra</span>`;
-                else statusHtml = `<span class="status-badge" style="background:#607D8B; color:white">Chưa gửi xe</span>`;
+                if (s.status === "PARKING") statusHtml = `<span class="status-badge status-parking">停放中</span>`;
+                else if (s.status === "CHECKOUT") statusHtml = `<span class="status-badge status-checkout">已出場</span>`;
+                else statusHtml = `<span class="status-badge" style="background:#607D8B; color:white">尚未入場</span>`;
 
                 const inTime = s.checkin_time ? new Date(s.checkin_time).toLocaleString('vi-VN') : "";
                 const outTime = s.checkout_time ? new Date(s.checkout_time).toLocaleString('vi-VN') : "";
@@ -673,7 +717,7 @@
                 tbody.appendChild(tr);
             });
         })
-        .catch(err => alert("Lỗi tìm kiếm: " + err));
+        .catch(err => alert("搜尋錯誤: " + err));
     }
 
     function showDetail(s) {
@@ -685,24 +729,24 @@
         let ownerText = s.owner_name || "---";
         
         if (s.is_whitelist === true) {
-            typeTag = `<span class="tag-whitelist">Xe Đăng Ký (Whitelist)</span>`;
+            typeTag = `<span class="tag-whitelist">登記車輛 (白名單)</span>`;
         } else if (s.is_whitelist === false) {
-            typeTag = `<span class="tag-guest">Xe Vãng Lai</span>`;
+            typeTag = `<span class="tag-guest">訪客車輛</span>`;
         } else {
             // Trường hợp load mặc định chưa có info whitelist -> Hiển thị chung chung
-            typeTag = `<span class="tag-guest" style="background:#555">Chưa kiểm tra</span>`;
+            typeTag = `<span class="tag-guest" style="background:#555">未檢查</span>`;
         }
 
         document.getElementById("modalPlate").innerHTML = `${formatPlate(s.plate_number)} ${typeTag}`;
         document.getElementById("modalOwner").innerText = ownerText;
         
         const inTime = s.checkin_time ? new Date(s.checkin_time).toLocaleString('vi-VN') : "";
-        const outTime = s.checkout_time ? new Date(s.checkout_time).toLocaleString('vi-VN') : "Chưa ra";
+        const outTime = s.checkout_time ? new Date(s.checkout_time).toLocaleString('vi-VN') : "尚未出場";
         
         let statusText = s.status;
-        if(s.status === "NO_SESSION") statusText = "Chưa có lịch sử gửi xe";
+        if(s.status === "NO_SESSION") statusText = "尚無停車紀錄";
         
-        document.getElementById("modalTime").innerHTML = `Vào: ${inTime}<br>Ra: ${outTime}<br>Trạng thái: <b>${statusText}</b>`;
+        document.getElementById("modalTime").innerHTML = `入場: ${inTime}<br>出場: ${outTime}<br>狀態: <b>${statusText}</b>`;
 
         // Images
         const imgContainer = document.getElementById("modalImages");
@@ -710,7 +754,7 @@
         if (s.checkin_img) {
             imgContainer.innerHTML += `
                 <div class="detail-img-box">
-                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh vào / Đăng ký</div>
+                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">入場照片 / 登記照片</div>
                     <a href="${BACKEND_URL}/static/${s.checkin_img}" target="_blank">
                         <img src="${BACKEND_URL}/static/${s.checkin_img}">
                     </a>
@@ -719,7 +763,7 @@
         if (s.checkout_img) {
             imgContainer.innerHTML += `
                 <div class="detail-img-box">
-                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh ra</div>
+                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">出場照片</div>
                     <a href="${BACKEND_URL}/static/${s.checkout_img}" target="_blank">
                         <img src="${BACKEND_URL}/static/${s.checkout_img}">
                     </a>
@@ -733,18 +777,18 @@
         const modal = document.getElementById("detailModal");
         const formattedPlate = formatPlate(item.plate_number);
         
-        document.getElementById("modalPlate").innerHTML = `${formattedPlate} <span class="tag-whitelist">Xe Đăng Ký (Whitelist)</span>`;
+        document.getElementById("modalPlate").innerHTML = `${formattedPlate} <span class="tag-whitelist">登記車輛 (白名單)</span>`;
         document.getElementById("modalOwner").innerText = item.owner_name || "---";
         
         const createdDate = item.created_at ? new Date(item.created_at).toLocaleString('vi-VN') : "---";
-        document.getElementById("modalTime").innerHTML = `Ngày đăng ký: ${createdDate}`;
+        document.getElementById("modalTime").innerHTML = `登記日期: ${createdDate}`;
 
         const imgContainer = document.getElementById("modalImages");
         imgContainer.innerHTML = "";
         if (item.car_img) {
             imgContainer.innerHTML += `
                 <div class="detail-img-box">
-                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">Ảnh đăng ký</div>
+                    <div style="color:#aaa; font-size:12px; margin-bottom:5px;">登記照片</div>
                     <a href="${BACKEND_URL}/static/${item.car_img}" target="_blank">
                         <img src="${BACKEND_URL}/static/${item.car_img}">
                     </a>
@@ -772,9 +816,9 @@
         const end = document.getElementById("endDate").value;
         const code = document.getElementById("secretCode").value;
 
-        if (!start || !end || !code) return alert("Vui lòng nhập đầy đủ thông tin!");
+        if (!start || !end || !code) return alert("請輸入完整資訊！");
 
-        if (deleteData && !confirm("CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu và ảnh trong khoảng thời gian này sau khi tải báo cáo không?")) {
+        if (deleteData && !confirm("警告: 您確定要在下載報表後刪除此期間的所有資料和照片嗎？")) {
             return;
         }
 
@@ -794,9 +838,17 @@
             document.body.appendChild(a);
             a.click();
             a.remove();
-            if (deleteData) alert("Đã tải báo cáo và xóa dữ liệu thành công!");
+            if (deleteData) alert("已成功下載報表並刪除資料！");
         })
-        .catch(err => alert("Lỗi tải báo cáo!"));
+        .catch(err => alert("下載報表失敗！"));
+    }
+
+    // --- RESPONSIVE LOGIC ---
+    function toggleSidebar() {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.querySelector('.sidebar-backdrop');
+        sidebar.classList.toggle('active');
+        backdrop.classList.toggle('active');
     }
 </script>
 

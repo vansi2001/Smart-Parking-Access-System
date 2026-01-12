@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Smart Parking - Scan Plate</title>
+    <title>智慧停車 - 車牌掃描</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
@@ -114,9 +114,9 @@
 <body>
 
 <div class="top-bar">
-    <button class="top-btn" onclick="window.location.href='admin/index.html'" style="background: #607D8B;">⚙️ Quản trị</button>
-    <button id="toggleQuickBtn" class="top-btn" onclick="toggleQuickList()">⚡ Ra/Vào Nhanh</button>
-    <button id="toggleManualBtn" class="top-btn" onclick="toggleManual()">✎ Nhập tay</button>
+    <button class="top-btn" onclick="window.location.href='admin/index.html'" style="background: #607D8B;">⚙️ 管理</button>
+    <button id="toggleQuickBtn" class="top-btn" onclick="toggleQuickList()">⚡ 快速進出</button>
+    <button id="toggleManualBtn" class="top-btn" onclick="toggleManual()">✎ 手動輸入</button>
 </div>
 
 <video id="video" autoplay playsinline></video>
@@ -127,43 +127,43 @@
     <div class="scan-line"></div>
 </div>
 
-<div id="status">Đang khởi động camera...</div>
-<button id="checkinBtn" class="actionBtn">Check-in</button>
-<button id="checkoutBtn" class="actionBtn">Check-out</button>
+<div id="status">正在啟動相機...</div>
+<button id="checkinBtn" class="actionBtn">入場</button>
+<button id="checkoutBtn" class="actionBtn">出場</button>
 
 <!-- Form nhập tay -->
 <div id="manualOverlay" class="overlay">
     <div class="form-box">
-        <h3 style="margin-top: 0; color: #FF9800;">Nhập biển số</h3>
-        <input type="text" id="manualInput" class="input-field" placeholder="VD: 30A-123.45" style="font-size: 18px; text-align: center; text-transform: uppercase;">
+        <h3 style="margin-top: 0; color: #FF9800;">輸入車牌</h3>
+        <input type="text" id="manualInput" class="input-field" placeholder="例如: 30A-123.45" style="font-size: 18px; text-align: center; text-transform: uppercase;">
         <div style="display: flex; justify-content: space-around; gap: 10px;">
-            <button onclick="sendManual(1)" style="flex: 1; background: #00AAFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Vào</button>
-            <button onclick="sendManual(0)" style="flex: 1; background: #FF9800; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Ra</button>
+            <button onclick="sendManual(1)" style="flex: 1; background: #00AAFF; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">進</button>
+            <button onclick="sendManual(0)" style="flex: 1; background: #FF9800; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">出</button>
         </div>
-        <button onclick="toggleManual()" style="margin-top: 20px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
+        <button onclick="toggleManual()" style="margin-top: 20px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">關閉</button>
     </div>
 </div>
 
 <!-- Form Quick List Whitelist -->
 <div id="quickListOverlay" class="overlay">
     <div class="form-box" style="max-width: 500px; width: 90%;">
-        <h3 style="margin-top: 0; color: #9C27B0;">⚡ Danh Sách Xe Ưu Tiên</h3>
-        <input type="text" id="quickSearchInput" class="input-field" placeholder="🔍 Nhập số cuối biển số..." onkeyup="filterQuickList()" style="text-align: center; font-size: 16px; font-weight: bold;">
+        <h3 style="margin-top: 0; color: #9C27B0;">⚡ 優先車輛名單</h3>
+        <input type="text" id="quickSearchInput" class="input-field" placeholder="🔍 輸入車牌尾號..." onkeyup="filterQuickList()" style="text-align: center; font-size: 16px; font-weight: bold;">
         <div id="quickListContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;">
             <!-- Items will be loaded here -->
         </div>
-        <button onclick="toggleQuickList()" style="background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Đóng</button>
+        <button onclick="toggleQuickList()" style="background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">關閉</button>
     </div>
 </div>
 
 <!-- Modal Xác Nhận Xe Vãng Lai -->
 <div id="confirmOverlay" class="overlay">
     <div class="form-box" style="border: 2px solid #FF9800;">
-        <h3 style="margin-top: 0; color: #FF9800;">⚠️ Cảnh Báo Xe Vãng Lai</h3>
-        <p id="confirmMsg" style="font-size: 18px; font-weight: bold; margin: 20px 0;">Biển số: ---</p>
+        <h3 style="margin-top: 0; color: #FF9800;">⚠️ 訪客車輛警告</h3>
+        <p id="confirmMsg" style="font-size: 18px; font-weight: bold; margin: 20px 0;">車牌: ---</p>
         <div style="display: flex; justify-content: space-around; gap: 10px;">
-            <button onclick="handleGuestDecision(1)" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">✅ Cho vào</button>
-            <button onclick="handleGuestDecision(0)" style="flex: 1; background: #F44336; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">❌ Hủy bỏ</button>
+            <button onclick="handleGuestDecision(1)" style="flex: 1; background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">✅ 允許進入</button>
+            <button onclick="handleGuestDecision(0)" style="flex: 1; background: #F44336; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">❌ 取消</button>
         </div>
     </div>
 </div>
@@ -171,11 +171,11 @@
 <!-- Modal Sửa Nhanh Sau Check-in -->
 <div id="quickEditOverlay" class="overlay">
     <div class="form-box">
-        <h3 style="margin-top: 0; color: #2196F3;">Sửa Biển Số</h3>
-        <p style="color: #aaa; font-size: 12px;">Cập nhật biển số cho lượt xe vừa vào</p>
+        <h3 style="margin-top: 0; color: #2196F3;">修改車牌</h3>
+        <p style="color: #aaa; font-size: 12px;">更新剛入場車輛的車牌</p>
         <input type="text" id="quickEditInput" class="input-field" style="font-size: 18px; text-align: center; text-transform: uppercase;">
-        <button onclick="submitQuickEdit()" style="width:100%; background: #2196F3; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">Lưu Thay Đổi</button>
-        <button onclick="closeQuickEdit()" style="margin-top: 10px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">Hủy</button>
+        <button onclick="submitQuickEdit()" style="width:100%; background: #2196F3; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold;">儲存變更</button>
+        <button onclick="closeQuickEdit()" style="margin-top: 10px; background: transparent; border: 1px solid #666; color: #aaa; padding: 8px 20px; border-radius: 20px;">取消</button>
     </div>
 </div>
 
@@ -216,17 +216,17 @@ navigator.mediaDevices.getUserMedia({
 })
 .then(stream => {
     video.srcObject = stream;
-    statusText.innerText = "Camera đã bật – bấm 'Quét' để gửi ảnh...";
+    statusText.innerText = "相機已開啟 – 按下按鈕發送照片...";
 })
 .catch(err => {
-    statusText.innerText = "Không bật được camera!";
+    statusText.innerText = "相機尚未準備好！";
     console.error(err);
 });
 
 // 2️⃣ Khi bấm nút Check-in / Check-out — gửi kèm trường `status` (1 = checkin, 0 = checkout)
 async function sendCapture(status, manualPlate = null, confirmed = 0) {
     if (!video.videoWidth) {
-        statusText.innerText = "Camera chưa sẵn sàng!";
+        statusText.innerText = "相機尚未準備好！";
         return;
     }
 
@@ -252,7 +252,7 @@ async function sendCapture(status, manualPlate = null, confirmed = 0) {
         // Nếu đang xác nhận lại biển số cũ (trường hợp AI đọc)
         if (confirmed === 1 && currentPlate && !manualPlate) formData.append("plate_number", currentPlate);
 
-        statusText.innerText = "Đang gửi ảnh...";
+        statusText.innerText = "正在發送照片...";
         
         startScanEffect(status); // Bắt đầu hiệu ứng quét
 
@@ -276,12 +276,12 @@ async function sendCapture(status, manualPlate = null, confirmed = 0) {
                 statusText.style.backgroundColor = "rgba(0, 0, 0, 0.7)"; // Màu đen (bình thường)
                 if (status === 1) {
                     // Check-in: Hiển thị thêm nút Sửa
-                    const plateDisplay = data.plate_number || 'Không rõ';
-                    statusText.innerHTML = `✅ ${data.message}<br>🚗 Biển số: <b>${plateDisplay}</b> <button onclick="openQuickEdit('${plateDisplay}')" style="background:#FF9800; border:none; color:white; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; margin-left:5px;">✏️ Sửa</button>`;
+                    const plateDisplay = data.plate_number || '未知';
+                    statusText.innerHTML = `✅ ${data.message}<br>🚗 車牌: <b>${plateDisplay}</b> <button onclick="openQuickEdit('${plateDisplay}')" style="background:#FF9800; border:none; color:white; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; margin-left:5px;">✏️ 修改</button>`;
                 } else {
                     // Check-out
                     const feeStr = data.fee ? data.fee.toLocaleString('vi-VN') : "0";
-                    statusText.innerText = `✅ ${data.message}\n🚗 Biển số: ${data.plate_number || 'Không rõ'}\n💰 Phí: ${feeStr} VNĐ`;
+                    statusText.innerText = `✅ ${data.message}\n🚗 車牌: ${data.plate_number || '未知'}\n💰 費用: ${feeStr} VNĐ`;
                 }
             } else if (data.need_confirmation) {
                 // --- TRƯỜNG HỢP XE VÃNG LAI CẦN XÁC NHẬN ---
@@ -296,7 +296,7 @@ async function sendCapture(status, manualPlate = null, confirmed = 0) {
             }
         })
         .catch(err => {
-            statusText.innerText = "❌ Không kết nối được BE";
+            statusText.innerText = "無法連接後端";
             console.error(err);
         })
         .finally(() => {
@@ -327,7 +327,7 @@ function toggleManual() {
 function sendManual(status) {
     const plate = document.getElementById("manualInput").value.trim();
     if (!plate) {
-        alert("Vui lòng nhập biển số!");
+        alert("請輸入車牌！");
         return;
     }
     toggleManual(); // Đóng form
@@ -350,7 +350,7 @@ function toggleQuickList() {
 
 function loadQuickWhitelist() {
     const container = document.getElementById("quickListContainer");
-    container.innerHTML = "<div style='text-align:center; color:#777'>Đang tải...</div>";
+    container.innerHTML = "<div style='text-align:center; color:#777'>正在載入...</div>";
     
     const url = BACKEND_URL.replace("/upload", "/api/whitelist");
     
@@ -362,7 +362,7 @@ function loadQuickWhitelist() {
         filterQuickList(); // Gọi hàm hiển thị (có áp dụng lọc)
     })
     .catch(err => {
-        container.innerHTML = "<div style='text-align:center; color:red'>Lỗi kết nối</div>";
+        container.innerHTML = "<div style='text-align:center; color:red'>連線錯誤</div>";
         console.error(err);
     });
 }
@@ -372,7 +372,7 @@ function filterQuickList() {
     const query = document.getElementById("quickSearchInput").value.toUpperCase().trim();
     
     if (cachedWhitelist.length === 0) {
-        container.innerHTML = "<div style='text-align:center; color:#777'>Danh sách trống</div>";
+        container.innerHTML = "<div style='text-align:center; color:#777'>清單為空</div>";
         return;
     }
 
@@ -396,7 +396,7 @@ function filterQuickList() {
 
     container.innerHTML = "";
     if (filtered.length === 0) {
-        container.innerHTML = "<div style='text-align:center; color:#777'>Không tìm thấy xe phù hợp</div>";
+        container.innerHTML = "<div style='text-align:center; color:#777'>找不到相符車輛</div>";
         return;
     }
 
@@ -410,8 +410,8 @@ function filterQuickList() {
                 <div style="color:#aaa; font-size:12px;">${item.owner_name || '---'}</div>
             </div>
             <div class="quick-actions">
-                <button class="btn-quick btn-in" onclick="handleQuickAction('${formattedPlate}', 1)">Vào</button>
-                <button class="btn-quick btn-out" onclick="handleQuickAction('${formattedPlate}', 0)">Ra</button>
+                <button class="btn-quick btn-in" onclick="handleQuickAction('${formattedPlate}', 1)">進</button>
+                <button class="btn-quick btn-out" onclick="handleQuickAction('${formattedPlate}', 0)">出</button>
             </div>
         `;
         container.appendChild(div);
@@ -426,7 +426,7 @@ function handleQuickAction(plate, status) {
 // --- Logic Xác Nhận Xe Vãng Lai ---
 function showConfirmModal(plate) {
     const overlay = document.getElementById("confirmOverlay");
-    document.getElementById("confirmMsg").innerText = `Biển số: ${formatPlate(plate)}`;
+    document.getElementById("confirmMsg").innerText = `車牌: ${formatPlate(plate)}`;
     overlay.style.display = "flex";
 }
 
@@ -437,7 +437,7 @@ function handleGuestDecision(decision) {
         sendCapture(1, null, 1);
     } else {
         // Người dùng chọn "Hủy" -> Xóa blob tạm
-        statusText.innerText = "❌ Đã hủy check-in xe vãng lai.";
+        statusText.innerText = "已取消訪客車輛入場。";
         currentBlob = null;
     }
 }
@@ -447,7 +447,7 @@ function openQuickEdit(currentPlate) {
     document.getElementById("quickEditOverlay").style.display = "flex";
     const input = document.getElementById("quickEditInput");
     // Nếu biển số là 'Không rõ' thì để trống để nhập cho nhanh
-    input.value = (currentPlate && currentPlate !== 'Không rõ') ? currentPlate : "";
+    input.value = (currentPlate && currentPlate !== '未知') ? currentPlate : "";
     input.focus();
 }
 
@@ -457,9 +457,9 @@ function closeQuickEdit() {
 
 function submitQuickEdit() {
     const newPlate = document.getElementById("quickEditInput").value.trim().toUpperCase();
-    if (!newPlate) return alert("Vui lòng nhập biển số!");
+    if (!newPlate) return alert("請輸入車牌！");
     
-    if (!lastSessionId) return alert("Không tìm thấy phiên làm việc để sửa!");
+    if (!lastSessionId) return alert("找不到可修改的會話！");
 
     const formData = new FormData();
     formData.append("plate_number", newPlate);
@@ -473,13 +473,13 @@ function submitQuickEdit() {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            statusText.innerHTML = `✅ Đã cập nhật<br>🚗 Biển số: <b>${newPlate}</b>`;
+            statusText.innerHTML = `✅ 已更新<br>🚗 車牌: <b>${newPlate}</b>`;
             closeQuickEdit();
         } else {
             alert("Lỗi: " + data.message);
         }
     })
-    .catch(err => alert("Lỗi kết nối!"));
+    .catch(err => alert("連線錯誤！"));
 }
 
 // --- Logic Hiệu ứng quét ---
